@@ -35,6 +35,9 @@
 
   body.guide { margin: 0; }
   .g-shell { display: grid; grid-template-columns: 292px minmax(0, 1fr); min-height: 100vh; }
+  .g-shell.noside { grid-template-columns: minmax(0, 1fr); }
+  .g-shell.noside .g-side { display: none; }
+  body.side-hidden .docview { left: 0; }
   /* ---- sidebar agenda ---- */
   .g-side { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--card); border-right: 1px solid var(--line); padding: 18px 14px; display: flex; flex-direction: column; gap: 4px; scrollbar-width: thin; }
   .g-brand { display: flex; gap: 10px; align-items: center; padding: 2px 6px 14px; }
@@ -219,6 +222,7 @@
 
   <div class="g-main">
     <div class="g-top">
+      <button class="btn ghost" id="sideToggle" title="Toggle sidebar">◀</button>
       <span class="crumb" id="crumb">00 · Overview</span>
       <div class="spacer"></div>
       <a class="btn primary" href="#tickets">Skip to tickets ↓</a>
@@ -1101,6 +1105,18 @@
   });
   paintTeam();
   renderCustom();
+  const shell = document.querySelector('.g-shell');
+  const sideBtn = document.getElementById('sideToggle');
+  function setSide(open) {
+    shell.classList.toggle('noside', !open);
+    document.body.classList.toggle('side-hidden', !open);
+    sideBtn.textContent = open ? '◀' : '☰';
+    try { localStorage.setItem('cps272-side', open ? '1' : '0'); } catch (e) {}
+  }
+  if (sideBtn) sideBtn.onclick = () => setSide(shell.classList.contains('noside'));
+  let sideOpen = true;
+  try { sideOpen = localStorage.getItem('cps272-side') !== '0'; } catch (e) {}
+  setSide(sideOpen);
   paint();
 </script>
 </body>
