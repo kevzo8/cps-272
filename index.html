@@ -284,7 +284,9 @@
       <div class="kicker">03 · As-Is vs To-Be</div>
       <h2>Side by side</h2>
       <p class="lead">Same grammar in both charts: rounded boxes are entries, diamonds are decisions, loops are rework.</p>
-      <h3>As-Is — assisted only</h3>
+      <div class="cols2">
+        <div>
+          <h3>As-Is — assisted only</h3>
       <div class="mermaid">flowchart TB
     A1([Person needs account]) --> A2[Frontliner account<br/>provisioned out-of-band]
     A2 --> A3[Frontliner logs into OWA<br/>login required, one baked-in realm]
@@ -295,7 +297,9 @@
     A7 -->|No| A8[User logs into portal]
     A7 -->|Yes| A9[Ad-hoc fix:<br/>manual patch or delete + re-enroll]
     A9 --> A5</div>
-      <h3>To-Be — self-service</h3>
+        </div>
+        <div>
+          <h3>To-Be — self-service</h3>
       <div class="mermaid">flowchart TB
     B1([Person needs account]) --> B2[Opens tenant link<br/>no account needed]
     B2 --> B3[Proves contact control<br/>code before any account exists]
@@ -308,6 +312,8 @@
     B9 -->|Redo| B10[Notified, logs in<br/>same module, new attempt]
     B10 --> B6
     B9 -->|Approve| B8</div>
+        </div>
+      </div>
     </section>
 
     <!-- 04 ARCH -->
