@@ -147,6 +147,10 @@
   .chip-m.active { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); background: var(--card); }
   .chip-pts { font-weight: 800; color: var(--acc2); }
   .filter-note { font-size: 11px; color: var(--acc2); font-weight: 700; }
+  .ref-back { position: fixed; left: 16px; bottom: 16px; z-index: 130; display: none; box-shadow: var(--shadow); }
+  .ref-back.show { display: inline-flex; }
+  @keyframes refflash { 0% { outline: 3px solid var(--acc); outline-offset: 3px; } 100% { outline: 3px solid transparent; outline-offset: 3px; } }
+  .flash { animation: refflash 1.4s ease; }
   #frindex tr[id], #usecases tr[id], section[id] { scroll-margin-top: 76px; }
   @media (max-width: 900px) { .apanel .grid2 { grid-template-columns: 1fr; } }
   /* in-deck document viewer */
@@ -805,6 +809,7 @@
   </div>
   <div class="docview-body" id="docbody"></div>
 </div>
+<button class="btn primary ref-back" id="refBack">← Back to <span id="refBackLabel">reference</span></button>
 <nav class="g-pagenav" aria-label="Section navigation">
   <button class="btn ghost" id="gprev">‹ Prev</button>
   <span id="gcount">1 / 12</span>
@@ -864,7 +869,7 @@
     const href = a.getAttribute('href');
     if (!href || href === '#') return;
     const t = document.querySelector(href);
-    if (t) { e.preventDefault(); if (!docview.hidden) closeDoc(); t.scrollIntoView({ behavior: 'smooth', block: a.classList.contains('ref') ? 'center' : 'start' }); }
+    if (t) { e.preventDefault(); if (a.classList.contains('ref')) noteRef(a); if (!docview.hidden) closeDoc(); t.scrollIntoView({ behavior: 'smooth', block: a.classList.contains('ref') ? 'center' : 'start' }); }
   }));
   function setTheme(t) {
     document.documentElement.dataset.theme = t;
@@ -941,6 +946,32 @@
     const hidden = document.body.classList.toggle('hide-pts');
     ptsBtn.textContent = hidden ? 'Show estimates' : 'Hide estimates';
   };
+  let refSource = null;
+  function noteRef(el) {
+    if (!el) return;
+    refSource = el;
+    const host = el.closest ? (el.closest('details.tkt') || el.closest('section')) : null;
+    let name = 'reference';
+    if (host) {
+      const s = host.querySelector('summary') || host.querySelector('h2');
+      const txt = ((s && s.textContent) || '').trim().replace(/\s+/g, ' ');
+      if (txt) name = txt.slice(0, 44);
+    }
+    document.getElementById('refBackLabel').textContent = name;
+    document.getElementById('refBack').classList.add('show');
+  }
+  document.getElementById('refBack').onclick = () => {
+    document.getElementById('refBack').classList.remove('show');
+    if (!docview.hidden) closeDoc();
+    if (refSource && refSource.isConnected) {
+      refSource.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const host = refSource.closest('details.tkt') || refSource.closest('tr') || refSource;
+      host.classList.remove('flash');
+      setTimeout(() => host.classList.add('flash'), 40);
+      setTimeout(() => host.classList.remove('flash'), 1900);
+    }
+    refSource = null;
+  };
   document.querySelectorAll('.clearRefBtn').forEach(clearBtn => { clearBtn.onclick = () => {
     try { history.replaceState(null, document.title, window.location.pathname + window.location.search); }
     catch (e) { window.location.hash = ' '; }
@@ -978,6 +1009,7 @@
     const key = (href.split('/').pop() || '').toLowerCase();
     const match = link || [...document.querySelectorAll('a.g-doc')].find(x => (x.getAttribute('href') || '').toLowerCase().endsWith('/' + key));
     if (match) match.classList.add('on');
+    if (link && link.tagName) noteRef(link);
     if (!window.marked || !marked.parse) {
       docbody.innerHTML = '<div class="note"><b>Renderer not loaded.</b> Go online once so the markdown renderer downloads, then click again.</div>';
       return;
@@ -1010,7 +1042,7 @@
     const a = e.target.closest ? e.target.closest('a.ref') : null;
     if (a && /\.md$/.test(a.getAttribute('href') || '')) {
       e.preventDefault();
-      openDoc(a.getAttribute('href'), a.getAttribute('title') || a.textContent);
+      openDoc(a.getAttribute('href'), a.getAttribute('title') || a.textContent, a);
     }
   });
   /* ---- Local planning board: assignees, estimates, notes, custom tickets (localStorage) ---- */
