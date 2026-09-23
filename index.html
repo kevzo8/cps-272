@@ -172,8 +172,7 @@
   .cmt-form { display: grid; gap: 8px; margin-top: 10px; background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
   .cmt-form label { font-size: 11px; font-weight: 700; color: var(--muted); display: grid; gap: 4px; }
   .cmt-form input, .cmt-form textarea { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; color: var(--txt); font-family: var(--font); font-size: 13px; }
-  .cmt-float { position: absolute; top: 60px; right: 16px; bottom: 16px; width: min(340px, calc(100vw - 32px)); z-index: 5; display: flex; flex-direction: column; }
-  .cmt-float.closed { bottom: auto; }
+  .cmt-float { position: absolute; left: 16px; right: 16px; bottom: 16px; width: auto; max-height: min(48vh, 430px); z-index: 5; display: flex; flex-direction: column; }
   .cmt-tab { display: flex; align-items: center; gap: 8px; width: 100%; border: none; cursor: pointer; font-family: var(--font); font-weight: 800; font-size: 13px; color: #fff; background: linear-gradient(135deg, var(--acc), var(--acc2)); padding: 10px 14px; border-radius: 12px; box-shadow: var(--shadow); }
   .cmt-float:not(.closed) .cmt-tab { border-radius: 12px 12px 0 0; }
   #cmtChev { margin-left: auto; }
