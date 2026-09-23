@@ -1037,7 +1037,6 @@
   }
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const stamp = () => new Date().toTimeString().slice(0, 5);
-  function defaultPts(d) { const b = d.querySelector('.badge.pts'); const m = b ? b.textContent.match(/(\d+)/) : null; return m ? m[1] : ''; }
   function paintCount() {
     const n = [...document.querySelectorAll('#tickets details.tkt[data-tid]')].filter(d => { const w = d.querySelector('.a-who'); return w && w.value.trim(); }).length;
     const el = document.getElementById('assignCount');
@@ -1048,11 +1047,9 @@
     const who = box.querySelector('.a-who'), pts = box.querySelector('.a-pts'),
           notes = box.querySelector('.a-notes'), saved = box.querySelector('.a-saved');
     const cur = ASSIGN[tid] || {};
-    if (cur.estimate === undefined || cur.estimate === '') {
-      const host = box.closest('details.tkt');
-      cur.estimate = host ? defaultPts(host) : '';
-    }
-    who.value = cur.assignee || ''; pts.value = cur.estimate || ''; notes.value = cur.notes || '';
+    who.value = cur.assignee || '';
+    pts.value = (cur.estimate === undefined || cur.estimate === null) ? '' : cur.estimate;
+    notes.value = cur.notes || '';
     if (cur.updatedAt) saved.textContent = 'Saved ' + cur.updatedAt;
     updateMeta(box);
     const on = () => {
