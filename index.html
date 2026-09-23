@@ -164,6 +164,15 @@
   .docview-body ul { display: grid; gap: 5px; padding-left: 22px; }
   .docview-body blockquote { border-left: 4px solid var(--acc); margin: 12px 0; padding: 6px 14px; background: var(--card2); border-radius: 0 10px 10px 0; }
   .g-doc.on { background: var(--card2); color: var(--txt); font-weight: 700; }
+  .cmt { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 8px 0; display: grid; gap: 6px; }
+  .cmt-meta { font-size: 11px; font-weight: 700; color: var(--muted); }
+  .cmt-text { font-size: 13.5px; white-space: pre-wrap; }
+  .cmt .btn, .cmt-ops .btn { padding: 5px 10px; font-size: 11px; justify-self: start; }
+  .cmt-ops { display: flex; gap: 8px; }
+  .cmt-form { display: grid; gap: 8px; margin-top: 10px; background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .cmt-form label { font-size: 11px; font-weight: 700; color: var(--muted); display: grid; gap: 4px; }
+  .cmt-form input, .cmt-form textarea { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; color: var(--txt); font-family: var(--font); font-size: 13px; }
+  #doccmt h3 { font-size: 17px; margin: 26px 0 6px; }
   @media (max-width: 900px) { .docview { left: 0; } }
   .feat-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 26px 0 4px; }
   .feat-head h3 { margin: 0 !important; }
@@ -202,6 +211,7 @@
     <div class="g-group">Delivery</div>
     <a class="g-link" href="#tickets"><span class="n">11</span>Tickets · 21 stories</a>
     <a class="g-link" href="#rollout"><span class="n">12</span>Rollout + next steps</a>
+    <a class="g-link" href="#feedback"><span class="n">13</span>Comments + feedback</a>
     <div class="g-group">Full design · docs/</div>
     <a class="g-doc" href="docs/HLR-Self-Service-Registration-KYC.md" title="High-Level Requirements source (FR-01…FR-33)"><span class="n">HLR</span>Requirements source</a>
     <a class="g-doc" href="docs/TDD-CPS-272-Self-Service-Registration-KYC.md" title="Canonical template-compliant TDD"><span class="n">TDD</span>Canonical design</a>
@@ -718,6 +728,14 @@
       </div>
       <p class="muted" style="font-size:12px">TDD by the Auth Team · full design in <code>docs/</code> · diagrams: Mermaid (needs internet once)</p>
     </section>
+
+    <!-- 13 FEEDBACK -->
+    <section class="g-sec" id="feedback">
+      <div class="kicker">13 · Comments and feedback</div>
+      <h2>What the team thinks</h2>
+      <p class="lead">Every comment written at the bottom of any document lands here, grouped by file. Write them in the viewer; manage them here. Included in the same JSON export as assignments.</p>
+      <div id="allComments"></div>
+    </section>
   </div>
 </div>
 <div class="docview" id="docview" hidden>
@@ -916,6 +934,8 @@
         el.closest('pre').replaceWith(d);
       });
       docbody.querySelectorAll('table').forEach(t => t.classList.add('spec'));
+      currentDoc = href;
+      renderDocComments();
       if (window.mermaid && mermaid.run) {
         try { await mermaid.run({ nodes: docbody.querySelectorAll('div.mermaid') }); } catch (err) {}
       }
@@ -935,10 +955,94 @@
     }
   });
   /* ---- Local planning board: assignees, estimates, notes, custom tickets (localStorage) ---- */
-  const LS_A = 'cps272-assign-v1', LS_C = 'cps272-custom-v1', LS_T = 'cps272-team-v1';
+  const LS_A = 'cps272-assign-v1', LS_C = 'cps272-custom-v1', LS_T = 'cps272-team-v1', LS_M = 'cps272-comments-v1', LS_N = 'cps272-myname';
   const loadJ = (k, f) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? f : v; } catch (e) { return f; } };
   const saveJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-  let ASSIGN = loadJ(LS_A, {}), CUSTOM = loadJ(LS_C, []), TEAM = loadJ(LS_T, []);
+  let ASSIGN = loadJ(LS_A, {}), CUSTOM = loadJ(LS_C, []), TEAM = loadJ(LS_T, []), COMMENTS = loadJ(LS_M, {});
+  let currentDoc = null;
+  const tsNow = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' + d.toTimeString().slice(0, 5); };
+  function renderDocComments() {
+    const old = document.getElementById('doccmt');
+    if (old) old.remove();
+    if (!currentDoc) return;
+    const list = COMMENTS[currentDoc] || [];
+    const wrap = document.createElement('div');
+    wrap.id = 'doccmt';
+    const h = document.createElement('h3');
+    h.textContent = 'Comments and feedback (' + list.length + ')';
+    wrap.appendChild(h);
+    const ul = document.createElement('div');
+    if (!list.length) {
+      const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'No comments on this document yet — write the first one below.';
+      ul.appendChild(p);
+    }
+    list.forEach((c, i) => {
+      const d = document.createElement('div'); d.className = 'cmt';
+      const meta = document.createElement('div'); meta.className = 'cmt-meta';
+      meta.textContent = (c.name || 'Anonymous') + ' · ' + (c.at || '');
+      const tx = document.createElement('div'); tx.className = 'cmt-text'; tx.textContent = c.text;
+      const del = document.createElement('button'); del.className = 'btn ghost'; del.textContent = 'Delete';
+      del.onclick = () => { COMMENTS[currentDoc].splice(i, 1); saveJ(LS_M, COMMENTS); renderDocComments(); renderAllComments(); };
+      d.appendChild(meta); d.appendChild(tx); d.appendChild(del);
+      ul.appendChild(d);
+    });
+    wrap.appendChild(ul);
+    const form = document.createElement('div'); form.className = 'cmt-form';
+    const ln = document.createElement('label'); ln.textContent = 'Your name (optional)';
+    const nin = document.createElement('input'); nin.id = 'cmtName'; nin.placeholder = 'e.g. Kevin';
+    try { nin.value = localStorage.getItem(LS_N) || ''; } catch (e) {}
+    ln.appendChild(nin);
+    const lt = document.createElement('label'); lt.textContent = 'Comment';
+    const tin = document.createElement('textarea'); tin.id = 'cmtText'; tin.rows = 3;
+    tin.placeholder = 'Write feedback on this document…';
+    lt.appendChild(tin);
+    const sv = document.createElement('div');
+    const btn = document.createElement('button'); btn.className = 'btn primary'; btn.textContent = 'Save comment';
+    btn.onclick = () => {
+      const text = tin.value.trim();
+      if (!text) return;
+      const name = nin.value.trim();
+      try { localStorage.setItem(LS_N, name); } catch (e) {}
+      (COMMENTS[currentDoc] = COMMENTS[currentDoc] || []).push({ text, name, at: tsNow() });
+      saveJ(LS_M, COMMENTS);
+      renderDocComments();
+      renderAllComments();
+    };
+    sv.appendChild(btn);
+    form.appendChild(ln); form.appendChild(lt); form.appendChild(sv);
+    wrap.appendChild(form);
+    docbody.appendChild(wrap);
+  }
+  function renderAllComments() {
+    const host = document.getElementById('allComments');
+    if (!host) return;
+    const files = Object.keys(COMMENTS).filter(k => (COMMENTS[k] || []).length);
+    host.innerHTML = '';
+    if (!files.length) {
+      const p = document.createElement('p'); p.className = 'muted';
+      p.textContent = 'No comments yet. Open any document from the sidebar and write the first one at the bottom.';
+      host.appendChild(p);
+      return;
+    }
+    files.forEach(f => {
+      const short = f.split('/').pop();
+      const h = document.createElement('h3'); h.textContent = short; host.appendChild(h);
+      COMMENTS[f].forEach((c, i) => {
+        const d = document.createElement('div'); d.className = 'cmt';
+        const meta = document.createElement('div'); meta.className = 'cmt-meta';
+        meta.textContent = (c.name || 'Anonymous') + ' · ' + (c.at || '');
+        const tx = document.createElement('div'); tx.className = 'cmt-text'; tx.textContent = c.text;
+        const row = document.createElement('div'); row.className = 'cmt-ops';
+        const open = document.createElement('button'); open.className = 'btn ghost'; open.textContent = 'Open document';
+        open.onclick = () => openDoc(f, short);
+        const del = document.createElement('button'); del.className = 'btn ghost'; del.textContent = 'Delete';
+        del.onclick = () => { COMMENTS[f].splice(i, 1); if (!COMMENTS[f].length) delete COMMENTS[f]; saveJ(LS_M, COMMENTS); renderAllComments(); };
+        row.appendChild(open); row.appendChild(del);
+        d.appendChild(meta); d.appendChild(tx); d.appendChild(row);
+        host.appendChild(d);
+      });
+    });
+  }
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const stamp = () => new Date().toTimeString().slice(0, 5);
   function defaultPts(d) { const b = d.querySelector('.badge.pts'); const m = b ? b.textContent.match(/(\d+)/) : null; return m ? m[1] : ''; }
@@ -1076,7 +1180,7 @@
     renderCustom();
   };
   document.getElementById('exportBtn').onclick = () => {
-    const data = { exportedAt: new Date().toISOString(), team: TEAM, assignments: ASSIGN, customTickets: CUSTOM };
+    const data = { exportedAt: new Date().toISOString(), team: TEAM, assignments: ASSIGN, customTickets: CUSTOM, comments: COMMENTS };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1092,11 +1196,12 @@
     r.onload = () => {
       try {
         const data = JSON.parse(r.result);
-        if (!data || typeof data !== 'object' || (!data.assignments && !data.team && !data.customTickets)) throw new Error('bad shape');
-        if (!confirm('Replace the current board with "' + f.name + '"? This overwrites team, assignments, and local tickets in this browser.')) return;
+        if (!data || typeof data !== 'object' || (!data.assignments && !data.team && !data.customTickets && !data.comments)) throw new Error('bad shape');
+        if (!confirm('Replace the current board with "' + f.name + '"? This overwrites team, assignments, local tickets, and comments in this browser.')) return;
         if (Array.isArray(data.team)) TEAM = data.team.filter(x => typeof x === 'string');
         if (data.assignments && typeof data.assignments === 'object') ASSIGN = data.assignments;
         if (Array.isArray(data.customTickets)) CUSTOM = data.customTickets.filter(c => c && c.id && c.title);
+        if (data.comments && typeof data.comments === 'object') COMMENTS = data.comments;
         saveJ(LS_T, TEAM); saveJ(LS_A, ASSIGN); saveJ(LS_C, CUSTOM);
         location.reload();
       } catch (err) { alert('Could not import: not a valid planning-board JSON file.'); }
@@ -1106,6 +1211,7 @@
   });
   paintTeam();
   renderCustom();
+  renderAllComments();
   const shell = document.querySelector('.g-shell');
   function setSide(open) {
     shell.classList.toggle('noside', !open);
