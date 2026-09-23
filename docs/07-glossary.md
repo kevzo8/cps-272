@@ -88,3 +88,19 @@ Short definitions for reviewers and implementers. Normative details live in the 
 | **E2E / UAT** | End-to-end test (full journey across systems); user acceptance testing (customer sign-off run, here the checkbox criteria and `08` scenarios). | `05`, `08` |
 | **Cool-down** | Configured period during which a rejected or duplicate-linked contact cannot register again (prevents retry loops). | `05` D-02b, `01 §8.2` |
 | **PNID** | Philippine National ID number — the ID type that triggers the PhilSys national check. | `05` C-02b |
+| **OWA** | Onboarding Web App — the Angular identity-verification module (ID capture, selfie, forms). Runs assisted (frontliner-driven) and self-service modes. | `01 §7`, `05` C-01 |
+| **OCR** | Optical Character Recognition — reading text (name, birthdate, ID number) out of ID photos. | `05` C-02a |
+| **WAF** | Web Application Firewall — edge filter blocking malicious traffic before it reaches the public APIs. | `09` pre-launch |
+| **CORS** | Cross-Origin Resource Sharing — browser rules deciding which web origins may call the APIs; allowlisted per tenant slug. | `06 §8` |
+| **HMAC-SHA256** | Hash-based Message Authentication Code with SHA-256 — the one-way hashing used for stored OTP codes, checked with constant-time comparison. | `05` A-02 |
+| **JWT** | JSON Web Token — signed token carrying login and session claims (including the new KYC claims). | `05` B-01 |
+| **UUID** | Universally Unique Identifier — random IDs used for tenants, users, sessions, and idempotency keys. | `04` |
+| **ABIS** | Automated Biometric Identification System — the MegaMatcher engine behind one-to-many face/fingerprint search and adjudication. | `05` C-02b, D-02b |
+| **GFS / HFiles** | The file/object storage holding raw evidence blobs (ID photos, selfies, video); databases keep only references and hashes. | `04 §4.4` |
+| **PKCE** | Proof Key for Code Exchange — the challenge/verifier mechanism securing the OIDC login code flow. | Portal login |
+| **TLS** | Transport Layer Security — encryption in transit (HTTPS). | `06` |
+| **CDN** | Content Delivery Network — hosts the Mermaid and markdown libraries the deck loads on first view. | Presentation README |
+| **TDD** | Technical Design Document — this design (`TDD-CPS-272-Self-Service-Registration-KYC.md`, team template). | Index |
+| **CPS** | Jira project prefix for this workstream's tickets (CPS-272 epic, A/B/C/D stories). | `05` |
+| **LGU** | Local Government Unit — the typical tenant organisation (also: agencies, enterprises). | `05` personas |
+| **WAR** | Web Application Archive — the Java deployable built for the portal and onboarding backends. | Build docs |
