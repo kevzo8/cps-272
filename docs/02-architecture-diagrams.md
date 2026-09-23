@@ -140,22 +140,22 @@ flowchart TB
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Register: open /self-service/:slug/register
-    Register --> OTPVerify: submit identifier + password + captcha
-    OTPVerify --> AccountCreated: OTP ok → Keycloak + Cassandra
-    OTPVerify --> Register: OTP fail / expired / resend
+    [*] --> Register: open tenant registration link
+    Register --> OTPVerify: submit identifier, password, captcha
+    OTPVerify --> AccountCreated: OTP ok, create login and account
+    OTPVerify --> Register: OTP fail, expired, or resend
     AccountCreated --> Login: proceed to login
-    Login --> KYCDecision: POST /token → kyc_status
+    Login --> KYCDecision: login returns KYC status
     KYCDecision --> Apps: KYC_VERIFIED
-    KYCDecision --> Onboarding: NOT_STARTED / IN_PROGRESS / REDO_REQUIRED
+    KYCDecision --> Onboarding: NOT_STARTED, IN_PROGRESS, REDO_REQUIRED
     KYCDecision --> Waiting: KYC_REVIEW
-    KYCDecision --> Blocked: REJECTED / SUSPENDED / DEACTIVATED
+    KYCDecision --> Blocked: REJECTED, SUSPENDED, DEACTIVATED
     Onboarding --> AutoApproved: all checks pass
-    Onboarding --> InReview: exception / duplicate
+    Onboarding --> InReview: exception or duplicate
     AutoApproved --> Apps
     InReview --> Reviewer: review case
     Reviewer --> Apps: approve
-    Reviewer --> Onboarding: redo (new attempt)
+    Reviewer --> Onboarding: redo as new attempt
     Reviewer --> Blocked: reject
 ```
 
@@ -312,10 +312,10 @@ sequenceDiagram
 ```mermaid
 stateDiagram-v2
     [*] --> NOT_STARTED: account created
-    NOT_STARTED --> IN_PROGRESS: bootstrap / start
+    NOT_STARTED --> IN_PROGRESS: bootstrap or start
     IN_PROGRESS --> IN_PROGRESS: resubmit within attempt
-    IN_PROGRESS --> KYC_REVIEW: submit → needs review
-    IN_PROGRESS --> KYC_VERIFIED: submit → auto-approve
+    IN_PROGRESS --> KYC_REVIEW: submit, needs review
+    IN_PROGRESS --> KYC_VERIFIED: submit, auto-approve
     KYC_REVIEW --> KYC_VERIFIED: reviewer approve
     KYC_REVIEW --> REDO_REQUIRED: reviewer redo
     KYC_REVIEW --> KYC_REJECTED: reviewer reject
@@ -330,13 +330,13 @@ stateDiagram-v2
 stateDiagram-v2
     [*] --> IN_PROGRESS: bootstrap creates attempt N
     IN_PROGRESS --> SUBMITTED: user submits
-    SUBMITTED --> UNDER_REVIEW: rules → review case
-    SUBMITTED --> APPROVED: rules → auto-approve
+    SUBMITTED --> UNDER_REVIEW: rules, review case
+    SUBMITTED --> APPROVED: rules, auto-approve
     UNDER_REVIEW --> APPROVED: reviewer approve
     UNDER_REVIEW --> REDO_REQUESTED: reviewer redo
     UNDER_REVIEW --> REJECTED: reviewer reject
-    REDO_REQUESTED --> SUPERSEDED: attempt N+1 created
-    APPROVED --> SUPERSEDED: newer APPROVED replaces current*
+    REDO_REQUESTED --> SUPERSEDED: next attempt created
+    APPROVED --> SUPERSEDED: newer APPROVED replaces current
     REJECTED --> SUPERSEDED: newer attempt created
     SUPERSEDED --> [*]
     APPROVED --> [*]
@@ -350,7 +350,7 @@ stateDiagram-v2
 stateDiagram-v2
     [*] --> PENDING: case created
     PENDING --> IN_REVIEW: reviewer opens/claims
-    IN_REVIEW --> DECIDED: approve / redo / reject
+    IN_REVIEW --> DECIDED: approve, redo, or reject
     DECIDED --> [*]
     note right of IN_REVIEW
         DUP_BIOMETRIC cases need a
