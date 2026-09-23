@@ -47,6 +47,7 @@ Short definitions for reviewers and implementers. Normative details live in the 
 | **Materialised status** | Cached copy of the latest lifecycle state on the `users` row for fast login/gating reads. Updated only by the lifecycle-append handler. | `users.kyc_status` (`04 §3`) |
 | **KYC as attribute** | Design rule: verification state travels with the user as data (and token claim), not as roles like `KYC_VERIFIED_CUSTOMER` — avoiding role explosion. | `User{roles[], kyc_status}` + `kyc_verified` claim (`01 §9`) |
 | **`applicant_id` vs `linked_person_id`** | `applicant_id` = KYC applicant record from onboarding; `linked_person_id` = established person identity linked after verification. Both carried on `users`. | `User` entity (`04 §1`) |
+| **`linked_user_ids` map** | Tenant-to-user binding on the back-office `person` record (`PUT /person/{person_id}/linked_user_ids`), checked via `HEAD .../linked_user`. The durable identity link for self-service (vs `applicant.self_user_id`, the session binding). | `05` C-01 |
 | **Status callback** | Idempotent service-to-service call by which KYC-API notifies auth-service of authoritative KYC transitions (with `idempotency_key`; stale events never regress state). | `POST /internal/kyc-status-callback` (`03 §5.4`) |
 | **BPO** | Business-process outsourcing / work-item engine for queueing tasks to human workers. Used for reviewer assignment, not per-registration tracking (volume: millions). | `01 §10.3` |
 

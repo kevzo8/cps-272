@@ -490,12 +490,10 @@ All data elements, organization, and search/retrieval optimization. (CQL/DDL in 
 
 **`kyc_attempts` (auth mirror) — NEW:** `(tenant_id, user_id) + attempt_no DESC`, `applicant_id`, `attempt_status`, `review_case_id` — join without KYC lookup.
 
-**KYC-API — `applicant` CHANGE + `kyc_attempt` / `review_case` NEW:** `self_user_id`, `source_channel`, `current_attempt_no`;
-attempt rows carry `ocr_provenance{ocr,user_confirmed,externally_verified}`, `dot_session_id`, `philsys_txn_id`,
-`liveness_result`, `biometric_encounter_id/hit`, `evidence_gfs_refs` (references + hashes, never blobs);
-case rows carry `issue_type/priority(CALC)/status/assignee/sla_due/decision/reason_code` with
-`(tenant_id, status, priority, sla_due)` queue index. `audit_trail` gains
-`RESOLVE_TENANT, REGISTRATION_INITIATED, OTP_SENT/VERIFIED_REGISTRATION, REGISTER_USER_SELF, KYC_STATUS_CALLBACK…`.
+**KYC back office (Cassandra `customer_kyc`) — `applicant` CHANGE + `kyc_attempt` / `review_case` NEW:** `self_user_id`, `source_channel`, `current_attempt_no` on `applicant`;
+attempt rows carry `ocr_provenance`, `philsys_txn_id`, `liveness_session_id`, `biometric_encounter_id/hit`, `evidence_hfiles_refs` (references + hashes, never blobs);
+case rows carry `issue_type/priority/status/assignee/sla_due/decision/reason_code` plus `adjudication_verdict/by/at`, partitioned `(tenant_id, status)` ordered by `sla_due` for queue reads. `audit_trail` gains
+`RESOLVE_TENANT, REGISTRATION_INITIATED, OTP_SENT/VERIFIED_REGISTRATION, REGISTER_USER_SELF, KYC_STATUS_CALLBACK…`. Full CQL in `04 §4`.
 
 ### 9.2 Search & Retrieval Optimization
 

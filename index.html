@@ -643,13 +643,13 @@
       <div class="feat-head"><h3>Feature C — Self-Service KYC Onboarding</h3><span class="count">5 tickets · same module, unassisted</span></div>
       <details class="tkt"><summary>C-01 — OWA Self Mode With Applicant Self-Bootstrap <span class="badge crit">Critical</span> <span class="badge pts">8 pts</span> <span class="badge comp">owa</span> <span class="badge comp">kyc-api</span></summary><div class="tbody">
         <p><b>Story:</b> As an <b>unverified Registered User</b>, I want to <b>start verification alone in the same module frontliners use</b> so that <b>I need no in-person help</b>.</p>
-        <p><b>Build</b> (<code>03 §5.1</code>): public <code>/self/:slug</code> route with runtime tenant + user token; idempotent bootstrap binding my user ID; assisted mode untouched.</p>
+        <p><b>Build</b> (<code>03 §5.1</code>): public <code>/self/:slug</code> route with runtime tenant + user token; idempotent bootstrap binding session (`applicant.self_user_id`) and identity (`person.linked_user_id` map); assisted mode untouched.</p>
         <p><b>Acceptance criteria:</b></p><ul class="ac"><li>No frontliner login is needed to open self mode.</li><li>Reopening resumes the same attempt; no duplicate applicant records.</li><li>The assisted end-to-end flow still passes unchanged.</li></ul>
         <p><b>FR</b> FR-11–FR-13 · <b>UC</b> UC-04, UC-10 · <b>Blocked by</b> A-01, B-01.</p>
       </div></details>
       <details class="tkt"><summary>C-02a — Self ID Capture With Document Inspection and OCR Provenance <span class="badge crit">Critical</span> <span class="badge pts">8 pts</span> <span class="badge comp">kyc-api</span> <span class="badge comp">owa</span></summary><div class="tbody">
         <p><b>Story:</b> As a <b>Registered User</b>, I want to <b>photograph my ID with the same fraud checks as assisted onboarding</b> so that <b>my document is verified remotely</b>.</p>
-        <p><b>Build:</b> OWA capture + portrait crop; inspection and OCR via the provider picked in Q9 (none in the current stack); keep OCR-read, user-confirmed, and externally-verified values separate; file refs + hashes only.</p>
+        <p><b>Build:</b> OWA capture + portrait crop; inspection and OCR via the provider picked in Q9 (none in the current stack); keep OCR-read, user-confirmed, and externally-verified values separate; evidence via the existing docs-upload endpoint, refs + hashes only.</p></p>
         <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Tampered or expired sample IDs are flagged exactly as in assisted mode (parity against the selected provider).</li><li>User corrections never overwrite OCR-extracted values.</li></ul>
         <p><b>FR</b> FR-13, FR-14 · <b>UC</b> UC-04 · <b>Blocked by</b> C-01, C-03.</p>
       </div></details>

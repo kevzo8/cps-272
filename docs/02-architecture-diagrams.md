@@ -73,7 +73,7 @@ flowchart LR
 | Account creation | Admin/frontliner calls authed `POST /user/register`; bulk import | Pending record plus OTP, account auto-created only after verify | A-02, A-03, A-04 |
 | Contact proof | None for new users (trusts frontliner) | OTP single-use + TTL before creation | A-02, A-03 |
 | OWA access | Frontliner Keycloak login, shared device | End-user Bearer, own device, runtime tenant | C-01 |
-| Applicant binding | None (counsellor-attributed) | `applicant.self_user_id` bound, idempotent resume | C-01, C-03 |
+| Applicant binding | None (counsellor-attributed) | Session (`applicant.self_user_id`) + durable (`person.linked_user_id` map) binding, idempotent resume | C-01, C-03 |
 | Verification pipeline | Doc inspect + PhilSys QR + 1:N, assisted capture | Identical stages, self capture, Spring Boot paths | C-02a, C-02b, C-02c |
 | Exception handling | Ad-hoc status patch or delete + re-enroll | `review_case` + back-office adjudication (PENDING on hits) + approve/redo/reject, attempts immutable | D-01, D-02, D-02b, D-03 |
 | Redo | Manual rework by staff | Notify user, same module, new attempt | D-04 |

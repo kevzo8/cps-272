@@ -175,6 +175,7 @@ ALTER TABLE customer_kyc.applicant ADD source_channel text;     -- assisted|self
 ALTER TABLE customer_kyc.applicant ADD current_attempt_no int;
 CREATE INDEX IF NOT EXISTS applicant_self_idx ON customer_kyc.applicant (self_user_id);
 ```
+Durable identity binding reuses the existing `person.linked_user_id` map (tenant→user) via `PUT /person/{person_id}/linked_user_ids` — no new person columns needed.
 
 ### 4.2 NEW `kyc_attempt` (Cassandra)
 ```cql
@@ -239,5 +240,5 @@ Raw ID/selfie/video stay in HFiles (existing); DB holds **references + hashes + 
 ## 6. Index & query discipline
 
 - Auth reads are always `(tenant_id, user_id)` or `(tenant_id, username)` or `(slug)` — no cross-partition scans in request paths.
-- Review queue reads use `(tenant_id, status, priority, sla_due)` index with pagination (`page_size ≤ 50`).
+- Review queue reads use the `((tenant_id, status), sla_due)` partition in `review_case` with pagination (`page_size ≤ 50`).
 - No `ALLOW FILTERING` anywhere (matches existing repo discipline). Support/admin exports go through bounded batch jobs, not request paths.

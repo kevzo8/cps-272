@@ -144,7 +144,7 @@ Reuse `api.ts`, `auth-fetch.ts` headers, modal/error patterns. Unknown/disabled 
 > New first-class resources over the existing Cassandra stores (`customer_kyc.applicant`, `facedb_result`, `person*`). Base path `/spring/gen-kyc-api`. `tenant_id` from `X-Tenant-ID` header (fallback JWT `tenant_id` claim — existing `JWTUtils.getTenantIdFromHeader` pattern); existing auth chain (`Authorized → Authenticated → AppID → Permissions → AuditLogger`) applies to new endpoints. Reuse as-is: `POST /customers/verify/face` (1:1), `POST /customers/identify/face` (1:N or by person_id), `POST /customers/enroll/face` (`SUCCESS`/`DUPLICATE_FOUND`/`ADJUDICATION_WAITING`), `PATCH /customers/update/face`, `GET /customers/biometrics/face` (evidence image), `POST /customers/save/transaction` (person registry), `GET /person`, `POST /psa/query/qr` (PhilSys eVerify passthrough).
 
 ### 5.1 `POST /kyc/self/bootstrap` (authenticated end-user Bearer)
-Creates-or-resumes the caller's applicant + open attempt. Binds `applicant.self_user_id = auth users.user_id` (new column, `04 §4`).
+Creates-or-resumes the caller's applicant + open attempt. Binds `applicant.self_user_id = auth users.user_id` (new column, `04 §4`) for the session, and writes the durable identity link via existing `PUT /person/{person_id}/linked_user_ids {user_id}` (tenant→user map; check with `HEAD .../linked_user`).
 ```json
 // request
 { "slug": "…", "consent_version": "2026-08-01" }

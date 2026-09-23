@@ -173,7 +173,7 @@ both disciplines and should be swarmed or split into backend/frontend subtasks a
 - **User story:** As an **unverified Registered User**, I want to **start identity verification by myself in the same onboarding module the frontliners use** so that **I do not need in-person assistance**.
 - **Requirements:**
   1. A public onboarding route `/self/:slug` in the onboarding web app (OWA) that resolves the tenant at load time, accepts the end user's own login token (not a frontliner's), behind a `self` launch-mode flag.
-  2. A `POST /kyc/self/bootstrap` endpoint that creates the caller's verification applicant record (or resumes the open one — exactly one open verification attempt per applicant), binding it to their user ID.
+  2. A `POST /kyc/self/bootstrap` endpoint that creates the caller's verification applicant record (or resumes the open one — exactly one open verification attempt per applicant): session binding via new `applicant.self_user_id`, durable identity binding via existing `PUT /person/{person_id}/linked_user_ids` (check first with `HEAD .../linked_user`).
   3. Assisted (frontliner-driven) mode byte-for-byte untouched, proven by the existing regression suite staying green.
 - **Acceptance criteria:**
   - [ ] Opening `/self` without any frontliner login succeeds with the user's own login token.
@@ -188,10 +188,11 @@ both disciplines and should be swarmed or split into backend/frontend subtasks a
 - **Requirements:**
   1. OWA captures ID front and back (portrait crop included); document inspection — tamper, machine-readable-zone, and expiry checks — via the provider selected in `01 §12 Q9` (no Innovatrics/DOT in the current stack).
   2. Keep three-way provenance for extracted data: the value read by OCR (text recognition, same TBD provider), the value confirmed or corrected by the user, and the value obtained from external verification — stored separately in `kyc_attempt.ocr_provenance`, never overwriting each other.
-  3. Evidence files stay in HFiles file storage; the database keeps only file references and hashes; no raw personal data in logs.
+  3. Evidence files go to HFiles through the existing validated upload (`POST /person/{person_id}/docs/{transaction_id}`, extended for attempt linkage if needed); the database keeps only file references and hashes; no raw personal data in logs.
 - **Acceptance criteria:**
   - [ ] A tampered or expired sample ID is flagged exactly as in assisted mode (parity test against the selected provider).
   - [ ] User corrections never overwrite OCR-extracted values (proven by querying all three).
+  - [ ] Uploaded evidence is retrievable per attempt via the docs endpoints.
 - **Use cases:** UC-04 · **FR:** FR-13, FR-14, FR-19 (partial) · **Dependencies:** blocked by C-01, C-03; decision `01 §12 Q9` (inspection/OCR provider).
 
 ### C-02b — PhilSys, Liveness, and Biometric Matching [Backend and Integration]
@@ -270,7 +271,7 @@ both disciplines and should be swarmed or split into backend/frontend subtasks a
 - **Title:** `D-03 Review Queue and Case Detail Screens`
 - **Type:** Story · **Priority:** Major · **Story Points:** 5 · **Component(s):** reviewer-ui
 - **User story:** As a **Reviewer**, I want **queue and case-detail screens matching the approved layout** so that **I can decide cases efficiently**.
-- **Requirements:** Queue table (case, user reference, issue, priority, status, deadline); case detail (account, submitted ID, OCR with provenance, national-ID check result, liveness, biometric result, extra info, audit trail, prior attempts, potential match); reviewer areas gated by the reviewer permission and the adjudication view by the adjudication permission. Host surface to confirm at sprint planning (no dedicated reviewer frontend was found in the analysed sibling repos — candidate: extend the KYC back-office admin UI).
+- **Requirements:** Queue table (case, user reference, issue, priority, status, deadline); case detail (account, submitted ID, OCR with provenance, national-ID check result, liveness, biometric result, extra info, audit trail, prior attempts, potential match); reviewer areas gated by the reviewer permission and the adjudication view by the adjudication permission. Host: new review routes in `svi-sso-admin-panel` (preferred — it already hosts users/roles/tenants pages) or the KYC back-office admin UI; confirm at sprint planning.
 - **Acceptance criteria:**
   - [ ] Unauthorized users get `403 Forbidden`; all decisions are audited with the actor.
 - **Use cases:** UC-08 · **FR:** FR-24, FR-25, FR-33 · **Dependencies:** blocked by D-01, D-02, D-02b.
@@ -339,7 +340,7 @@ Jira for duplicate summaries before creating (checklist below).
 | B-01 | KYC in login response and identity token | Login returns `customer_id` only (`AuthenticationServiceImpl.java:177,348`); identity-token claims are `iss, sub, aud, iat, exp, nonce, email, name, preferred_username` only (`OidcIdTokenService.java:53-70`) |
 | B-02 | verification status page | No status page in portal; app list has no verification awareness |
 | B-03 | suspend endpoints, lifecycle read API | No `suspend` anywhere in auth-service src; no history table |
-| C-01 | self route, applicant self-bootstrap | No `/self` route in OWA routing (every "self" hit is "selfie"); no bootstrap or `self_user` concept in `kyc-api` |
+| C-01 | self route, applicant self-bootstrap | No `/self` route in OWA routing (every "self" hit is "selfie"); no bootstrap, `self_user_id`, or person-link wiring in the back office |
 | C-02a | self capture pipeline + TBD inspection provider | No self-service capture orchestration; no document-inspection/OCR provider in the back office (Q9) |
 | C-02b | PhilSys QR, liveness passthrough, and 1:N wiring for self flow | `POST /psa/query/qr`, `/customers/identify|enroll/face` exist and are reused; no self-flow wiring or hit-to-case path |
 | C-02c | attempt submit, status callback, client re-point | No `callback` push from KYC back office to auth service (`KYCAPIUtil` only pulls); auth-service client still targets legacy paths; no self submit endpoint |
