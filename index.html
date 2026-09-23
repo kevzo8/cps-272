@@ -172,7 +172,16 @@
   .cmt-form { display: grid; gap: 8px; margin-top: 10px; background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
   .cmt-form label { font-size: 11px; font-weight: 700; color: var(--muted); display: grid; gap: 4px; }
   .cmt-form input, .cmt-form textarea { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; color: var(--txt); font-family: var(--font); font-size: 13px; }
-  #doccmt h3 { font-size: 17px; margin: 26px 0 6px; }
+  .cmt-float { position: absolute; top: 60px; right: 16px; bottom: 16px; width: min(340px, calc(100vw - 32px)); z-index: 5; display: flex; flex-direction: column; }
+  .cmt-float.closed { bottom: auto; }
+  .cmt-tab { display: flex; align-items: center; gap: 8px; width: 100%; border: none; cursor: pointer; font-family: var(--font); font-weight: 800; font-size: 13px; color: #fff; background: linear-gradient(135deg, var(--acc), var(--acc2)); padding: 10px 14px; border-radius: 12px; box-shadow: var(--shadow); }
+  .cmt-float:not(.closed) .cmt-tab { border-radius: 12px 12px 0 0; }
+  #cmtChev { margin-left: auto; }
+  #cmtCount { opacity: .85; font-weight: 600; }
+  .cmt-panel { background: var(--card); border: 1px solid var(--line); border-top: none; border-radius: 0 0 12px 12px; display: flex; flex-direction: column; min-height: 0; flex: 1; overflow: hidden; box-shadow: var(--shadow); }
+  .cmt-float.closed .cmt-panel { display: none; }
+  .cmt-list { overflow-y: auto; padding: 10px 12px; display: grid; gap: 8px; align-content: start; flex: 1; min-height: 120px; }
+  .cmt-float .cmt-form { margin: 0; border: none; border-top: 1px solid var(--line); border-radius: 0; }
   @media (max-width: 900px) { .docview { left: 0; } }
   .feat-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 26px 0 4px; }
   .feat-head h3 { margin: 0 !important; }
@@ -746,6 +755,17 @@
     <a class="btn ghost" id="docraw" href="#" target="_blank" rel="noopener">Open raw</a>
     <button class="btn primary" id="docclose">Close ✕</button>
   </div>
+  <div class="cmt-float closed" id="cmtFloat">
+    <button class="cmt-tab" id="cmtTab"><span>💬 Comments</span><span id="cmtCount"></span><span id="cmtChev">▸</span></button>
+    <div class="cmt-panel" id="cmtPanel">
+      <div class="cmt-list" id="cmtList"></div>
+      <div class="cmt-form">
+        <label>Your name (optional)<input id="cmtName" placeholder="e.g. Kevin"></label>
+        <label>Comment<textarea id="cmtText" rows="3" placeholder="Write feedback on this document…"></textarea></label>
+        <div><button class="btn primary" id="cmtSaveBtn">Save comment</button></div>
+      </div>
+    </div>
+  </div>
   <div class="docview-body" id="docbody"></div>
 </div>
 <nav class="g-pagenav" aria-label="Section navigation">
@@ -962,21 +982,17 @@
   let currentDoc = null;
   const tsNow = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + ' ' + d.toTimeString().slice(0, 5); };
   function renderDocComments() {
-    const old = document.getElementById('doccmt');
-    if (old) old.remove();
+    const listEl = document.getElementById('cmtList');
+    const items = (currentDoc && COMMENTS[currentDoc]) || [];
+    document.getElementById('cmtCount').textContent = items.length ? '(' + items.length + ')' : '';
+    listEl.innerHTML = '';
     if (!currentDoc) return;
-    const list = COMMENTS[currentDoc] || [];
-    const wrap = document.createElement('div');
-    wrap.id = 'doccmt';
-    const h = document.createElement('h3');
-    h.textContent = 'Comments and feedback (' + list.length + ')';
-    wrap.appendChild(h);
-    const ul = document.createElement('div');
-    if (!list.length) {
-      const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'No comments on this document yet — write the first one below.';
-      ul.appendChild(p);
+    if (!items.length) {
+      const p = document.createElement('p'); p.className = 'muted'; p.textContent = 'No comments on this document yet.';
+      listEl.appendChild(p);
+      return;
     }
-    list.forEach((c, i) => {
+    items.forEach((c, i) => {
       const d = document.createElement('div'); d.className = 'cmt';
       const meta = document.createElement('div'); meta.className = 'cmt-meta';
       meta.textContent = (c.name || 'Anonymous') + ' · ' + (c.at || '');
@@ -984,34 +1000,8 @@
       const del = document.createElement('button'); del.className = 'btn ghost'; del.textContent = 'Delete';
       del.onclick = () => { COMMENTS[currentDoc].splice(i, 1); saveJ(LS_M, COMMENTS); renderDocComments(); renderAllComments(); };
       d.appendChild(meta); d.appendChild(tx); d.appendChild(del);
-      ul.appendChild(d);
+      listEl.appendChild(d);
     });
-    wrap.appendChild(ul);
-    const form = document.createElement('div'); form.className = 'cmt-form';
-    const ln = document.createElement('label'); ln.textContent = 'Your name (optional)';
-    const nin = document.createElement('input'); nin.id = 'cmtName'; nin.placeholder = 'e.g. Kevin';
-    try { nin.value = localStorage.getItem(LS_N) || ''; } catch (e) {}
-    ln.appendChild(nin);
-    const lt = document.createElement('label'); lt.textContent = 'Comment';
-    const tin = document.createElement('textarea'); tin.id = 'cmtText'; tin.rows = 3;
-    tin.placeholder = 'Write feedback on this document…';
-    lt.appendChild(tin);
-    const sv = document.createElement('div');
-    const btn = document.createElement('button'); btn.className = 'btn primary'; btn.textContent = 'Save comment';
-    btn.onclick = () => {
-      const text = tin.value.trim();
-      if (!text) return;
-      const name = nin.value.trim();
-      try { localStorage.setItem(LS_N, name); } catch (e) {}
-      (COMMENTS[currentDoc] = COMMENTS[currentDoc] || []).push({ text, name, at: tsNow() });
-      saveJ(LS_M, COMMENTS);
-      renderDocComments();
-      renderAllComments();
-    };
-    sv.appendChild(btn);
-    form.appendChild(ln); form.appendChild(lt); form.appendChild(sv);
-    wrap.appendChild(form);
-    docbody.appendChild(wrap);
   }
   function renderAllComments() {
     const host = document.getElementById('allComments');
@@ -1036,7 +1026,7 @@
         const open = document.createElement('button'); open.className = 'btn ghost'; open.textContent = 'Open document';
         open.onclick = () => openDoc(f, short);
         const del = document.createElement('button'); del.className = 'btn ghost'; del.textContent = 'Delete';
-        del.onclick = () => { COMMENTS[f].splice(i, 1); if (!COMMENTS[f].length) delete COMMENTS[f]; saveJ(LS_M, COMMENTS); renderAllComments(); };
+        del.onclick = () => { COMMENTS[f].splice(i, 1); if (!COMMENTS[f].length) delete COMMENTS[f]; saveJ(LS_M, COMMENTS); renderDocComments(); renderAllComments(); };
         row.appendChild(open); row.appendChild(del);
         d.appendChild(meta); d.appendChild(tx); d.appendChild(row);
         host.appendChild(d);
@@ -1209,6 +1199,32 @@
     r.readAsText(f);
     e.target.value = '';
   });
+  document.getElementById('cmtSaveBtn').onclick = () => {
+    if (!currentDoc) return;
+    const tin = document.getElementById('cmtText'), nin = document.getElementById('cmtName');
+    const text = tin.value.trim();
+    if (!text) return;
+    const name = nin.value.trim();
+    try { localStorage.setItem(LS_N, name); } catch (e) {}
+    (COMMENTS[currentDoc] = COMMENTS[currentDoc] || []).push({ text, name, at: tsNow() });
+    saveJ(LS_M, COMMENTS);
+    tin.value = '';
+    renderDocComments();
+    renderAllComments();
+  };
+  const cmtFloat = document.getElementById('cmtFloat');
+  function setCmt(open) {
+    cmtFloat.classList.toggle('closed', !open);
+    document.getElementById('cmtChev').textContent = open ? '▾' : '▸';
+    try { localStorage.setItem('cps272-cmt', open ? '1' : '0'); } catch (e) {}
+  }
+  document.getElementById('cmtTab').onclick = () => setCmt(cmtFloat.classList.contains('closed'));
+  (function initCmt() {
+    let o = window.innerWidth > 900;
+    try { const v = localStorage.getItem('cps272-cmt'); o = v === null ? window.innerWidth > 900 : v === '1'; } catch (e) {}
+    setCmt(o);
+    try { document.getElementById('cmtName').value = localStorage.getItem(LS_N) || ''; } catch (e2) {}
+  })();
   paintTeam();
   renderCustom();
   renderAllComments();
