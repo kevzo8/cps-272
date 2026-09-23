@@ -367,4 +367,5 @@ Jira for duplicate summaries before creating (checklist below).
   - Sprint 6: C-02c, D-01.
   - Sprint 7: D-02, D-02b, D-04.
   - Sprint 8: D-03, D-05, D-07, and pilot (D-08).
+- [ ] Phase plan and decision owners: `09-rollout-plan.md`; confirm Q1–Q3 before sprint 1.
 - [ ] Definition of Ready per story: contract section in `03` and the schema section in `04` reviewed; open questions in `01 §12` resolved or explicitly deferred.

@@ -25,6 +25,7 @@ diagrams, use cases, API, data, glossary, and all 21 tickets as collapsible item
 | `06-security-errorhandling.md` | Threat model, OTP/password/CAPTCHA/rate-limit design, anti-enumeration, PII/biometric handling, error catalogue, audit requirements | Security reviewer, backend + QA |
 | `07-glossary.md` | Definitions: slug, realm, tenant, pending registration, OTP, attempt, review case, KYC status, lifecycle history, applicant IDs, callback, BPO | All readers, new joiners |
 | `08-use-cases.md` | End-to-end scenarios UC-01…UC-10 (actors, flows, alternates) with ticket and FR coverage matrix | All readers, QA (UAT scripts) |
+| `09-rollout-plan.md` | Phased rollout, open-question decision log with defaults, workstream order, pre-launch checklist, pilot gates, sign-offs | TL, PM, Release Manager |
 
 ### One-page summary
 

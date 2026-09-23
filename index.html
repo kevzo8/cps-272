@@ -232,6 +232,7 @@
     <a class="g-doc" href="docs/06-security-errorhandling.md" title="Threat model + error catalogue"><span class="n">06</span>Security</a>
     <a class="g-doc" href="docs/07-glossary.md" title="Term definitions"><span class="n">07</span>Glossary</a>
     <a class="g-doc" href="docs/08-use-cases.md" title="End-to-end scenarios"><span class="n">08</span>Use cases</a>
+    <a class="g-doc" href="docs/09-rollout-plan.md" title="Phases, decisions, checklists"><span class="n">09</span>Rollout plan</a>
     <div class="side-foot">
       <p>21 tickets · ≈114 points · 10 use cases · additive-only, no breaking changes.</p>
       <p>Docs open rendered inside this deck (Live Server for local files).</p>
@@ -726,10 +727,37 @@
     <section class="g-sec" id="rollout">
       <div class="kicker">11 · Rollout + next steps</div>
       <h2>Dark launch, then tenants one by one</h2>
+      <p class="lead">Five phases from decisions to pilot. Full plan with owners, exit gates, and checklists: file <b>09</b> in the sidebar.</p>
+      <div class="flow">
+        <div><b>0. Decide</b>hashing, SMS, slugs</div>
+        <div><b>1. Foundations</b>register + login</div>
+        <div><b>2. Verify</b>self onboarding</div>
+        <div><b>3. Review</b>humans + redo</div>
+        <div><b>4. Pilot</b>one tenant live</div>
+      </div>
+      <h3>Decide first (blocking choices, proposed defaults)</h3>
+      <table class="spec"><tr><th>Question</th><th>Default so work starts</th><th>Owner → blocks</th></tr>
+        <tr><td>Password hashing (Q1)</td><td>Argon2id for new accounts</td><td>Security → A-03</td></tr>
+        <tr><td>SMS vendor (Q2)</td><td>Contract it; email-only pilot fallback</td><td>Product → A-02, D-05</td></tr>
+        <tr><td>Slugs (Q3)</td><td>Team-minted, immutable</td><td>RBAC admin → A-01</td></tr>
+        <tr><td>Retry limits (Q4)</td><td>3 attempts, then forced review</td><td>Product → C-02c</td></tr></table>
+      <h3>Before pilot goes live</h3>
       <ul>
-        <li><b>Flags first:</b> everything hides behind per-tenant switches; rollback is flag-off, never a database rollback.</li>
-        <li><b>Risks to watch:</b> SMS vendor unsigned (blocks A-02/D-05) · password-hash decision open (blocks A-03) · review-queue overload (priority + SLA + escalation) · Keycloak partial creates (compensating disable + reconciliation).</li>
-        <li><b>Next steps:</b> decide the open questions (<code>01 §12</code>) → search Jira for duplicates → file the 21 tickets from <code>05</code> → confirm the D-03 host UI → contract the SMS vendor.</li>
+        <li>Secrets, Keycloak service accounts, and SMS keys in vault; orphan reconciliation scheduled.</li>
+        <li>WAF plus CORS per slug; backfill null-count zero; pilot slug, settings, roles, and reviewer accounts seeded.</li>
+        <li>Reviewers trained; runbooks published; dashboards and paging alerts live; flag-off drill passed.</li>
+      </ul>
+      <h3>Risks to watch</h3>
+      <ul>
+        <li>Enumeration and code interception — uniform replies, short single-use codes, rate limits.</li>
+        <li>Duplicate fraud — every biometric hit adjudicated, nothing auto-merged.</li>
+        <li>Partial creates and back-office outages — compensating disable; fail-closed only where gated.</li>
+      </ul>
+      <h3>Next steps</h3>
+      <ul>
+        <li>Confirm or override the 8 proposed defaults in the rollout plan's decision log.</li>
+        <li>Search Jira for duplicates, then file the 21 tickets.</li>
+        <li>Confirm the D-03 host UI and contract the SMS vendor.</li>
       </ul>
       <div class="cta-row">
         <a class="btn primary" href="#tickets">Back to tickets ↑</a>

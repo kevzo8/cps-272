@@ -7,7 +7,7 @@
 > Detail annexes: `01-TDD-main.md` (design rationale), `02-architecture-diagrams.md` (full Mermaid set),
 > `03-api-design.md` (contracts), `04-data-model.md` (schemas), `05-user-stories-tickets.md` (Jira-ready tickets),
 > `06-security-errorhandling.md` (threat model + error catalogue), `07-glossary.md` (term definitions),
-> `08-use-cases.md` (end-to-end scenarios with ticket coverage).
+> `08-use-cases.md` (end-to-end scenarios with ticket coverage), `09-rollout-plan.md` (phases, decisions, checklists).
 
 **Title:** CPS-272 — Self-Service User Registration with KYC Integration
 
@@ -644,4 +644,4 @@ Issues still requiring a stakeholder decision. (Same list as `01 §12`.)
 
 ---
 
-*Annexes: `01-TDD-main.md` · `02-architecture-diagrams.md` · `03-api-design.md` · `04-data-model.md` · `05-user-stories-tickets.md` · `06-security-errorhandling.md` · `07-glossary.md` · `08-use-cases.md`.*
+*Annexes: `01-TDD-main.md` · `02-architecture-diagrams.md` · `03-api-design.md` · `04-data-model.md` · `05-user-stories-tickets.md` · `06-security-errorhandling.md` · `07-glossary.md` · `08-use-cases.md` · `09-rollout-plan.md`.*

@@ -32,6 +32,7 @@ navigation, and light/dark theme toggle. All CSS and JS are inline — one file 
 | Glossary | `docs/cps-272/07-glossary.md` (abridged to 15 terms) |
 | Tickets (collapsible, the centerpiece) | `docs/cps-272/05-user-stories-tickets.md` (full Jira fields) |
 | Rollout, Risks, Next Steps | TDD §10–§14 |
+| Rollout detail (phases, decisions, checklists) | `docs/09-rollout-plan.md` |
 
 ## Local planning board (Tickets section)
 
