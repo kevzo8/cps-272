@@ -172,7 +172,7 @@
   .cmt-form { display: grid; gap: 8px; margin-top: 10px; background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
   .cmt-form label { font-size: 11px; font-weight: 700; color: var(--muted); display: grid; gap: 4px; }
   .cmt-form input, .cmt-form textarea { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; color: var(--txt); font-family: var(--font); font-size: 13px; }
-  .cmt-float { position: absolute; right: 16px; bottom: 16px; width: min(300px, calc(100vw - 32px)); max-height: min(42vh, 360px); z-index: 5; display: flex; flex-direction: column; }
+  .cmt-float { position: absolute; right: 16px; bottom: 16px; width: min(260px, calc(100vw - 32px)); max-height: min(42vh, 360px); z-index: 5; display: flex; flex-direction: column; }
   .cmt-tab { display: flex; align-items: center; gap: 6px; width: 100%; border: none; cursor: pointer; font-family: var(--font); font-weight: 700; font-size: 12px; color: #fff; background: linear-gradient(135deg, var(--acc), var(--acc2)); padding: 6px 12px; border-radius: 16px; box-shadow: var(--shadow); }
   .cmt-float:not(.closed) .cmt-tab { border-radius: 12px 12px 0 0; }
   #cmtChev { margin-left: auto; }
@@ -773,7 +773,7 @@
   <span id="gcount">1 / 12</span>
   <button class="btn primary" id="gnext">Next ›</button>
 </nav>
-<script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/lib/marked.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script>mermaid.initialize({ startOnLoad: true, securityLevel: "loose" });</script>
 <script>
@@ -824,7 +824,9 @@
   }, { rootMargin: '-40% 0px -55% 0px' });
   secs.forEach((s) => s && io.observe(s));
   document.querySelectorAll('a[href^="#"]').forEach((a) => a.addEventListener('click', (e) => {
-    const t = document.querySelector(a.getAttribute('href'));
+    const href = a.getAttribute('href');
+    if (!href || href === '#') return;
+    const t = document.querySelector(href);
     if (t) { e.preventDefault(); if (!docview.hidden) closeDoc(); t.scrollIntoView({ behavior: 'smooth', block: a.classList.contains('ref') ? 'center' : 'start' }); }
   }));
   function setTheme(t) {
@@ -960,7 +962,7 @@
         try { await mermaid.run({ nodes: docbody.querySelectorAll('div.mermaid') }); } catch (err) {}
       }
     } catch (err) {
-      docbody.innerHTML = '<div class="note"><b>Could not load the rendered document.</b> Browsers block local file reads, so serve the folder over HTTP and click again.<br><br><b>Option 1 (VS Code):</b> right-click <code>index.html</code> → Open with Live Server.<br><b>Option 2 (terminal):</b> from the repo root run <code>npx -y serve docs -l 8080</code>, then open <code>http://localhost:8080/cps-272-presentation/</code>.<br><br>Tip: the <b>Open raw</b> button above always works as a fallback.</div>';
+      docbody.innerHTML = '<div class="note"><b>Could not load the rendered document.</b> Browsers block local file reads, so serve the folder over HTTP and click again.<br><br><b>Option 1 (VS Code):</b> right-click <code>index.html</code> → Open with Live Server.<br><b>Option 2 (terminal):</b> from the repo root run <code>npx -y serve . -l 8080</code>, then open <code>http://localhost:8080/</code>.<br><br>Tip: the <b>Open raw</b> button above always works as a fallback.</div>';
     }
   }
   document.querySelectorAll('a.g-doc').forEach(a => a.addEventListener('click', e => {
