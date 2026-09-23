@@ -123,7 +123,6 @@
   a.ref { color: var(--acc2); text-decoration: underline dotted; text-underline-offset: 2px; }
   a.ref:hover { color: var(--acc); }
   span.ref-hlr { border-bottom: 1px dotted var(--acc2); cursor: help; }
-  #frindex tr:target td, #usecases tr:target td { outline: 2px solid var(--acc); }
   ul.ac { list-style: none; padding-left: 4px; display: grid; gap: 5px; margin: 6px 0 10px; }
   ul.ac li::before { content: "☐ "; color: var(--acc); font-weight: 800; }
   body.hide-pts .badge.pts, body.hide-pts .pts-stat, body.hide-pts .pts-val { display: none; }
@@ -149,8 +148,6 @@
   .filter-note { font-size: 11px; color: var(--acc2); font-weight: 700; }
   .ref-back { position: fixed; left: 16px; bottom: 16px; z-index: 130; display: none; box-shadow: var(--shadow); }
   .ref-back.show { display: inline-flex; }
-  @keyframes refflash { 0% { outline: 3px solid var(--acc); outline-offset: 3px; } 100% { outline: 3px solid transparent; outline-offset: 3px; } }
-  .flash { animation: refflash 1.4s ease; }
   #frindex tr[id], #usecases tr[id], section[id] { scroll-margin-top: 76px; }
   @media (max-width: 900px) { .apanel .grid2 { grid-template-columns: 1fr; } }
   /* in-deck document viewer */
@@ -419,7 +416,6 @@
       <div class="kicker">06 · Use cases</div>
       <h2>Ten scenarios that double as UAT</h2>
       <p class="lead">Full scripts with actors and alternates live in <code>08-use-cases.md</code>. QA lifts them straight into test plans.</p>
-      <p><button class="btn ghost clearRefBtn">Clear highlight</button> <span class="muted" style="font-size:12px">Removes the outline after jumping to a referenced row.</span></p>
       <table class="spec"><tr><th>ID</th><th>Scenario</th><th>Actor</th><th>Tickets</th></tr>
         <tr id="uc-01"><td>UC-01</td><td>Self-registration happy path</td><td>Registrant</td><td>A-01…A-04</td></tr>
         <tr id="uc-02"><td>UC-02</td><td>Code resend and expiry recovery</td><td>Registrant</td><td>A-02, A-04</td></tr>
@@ -511,7 +507,6 @@
       <div class="kicker">10 · FR index</div>
       <h2>Every FR, one line each</h2>
       <p class="lead">The 33 numbered Functional Requirements from the approved High-Level Requirements doc (full source: sidebar → <b>HLR · Requirements source</b>). Every <b>FR</b> tag on a ticket below links here; every row lists the tickets that implement it.</p>
-      <p><button class="btn ghost clearRefBtn">Clear highlight</button> <span class="muted" style="font-size:12px">Removes the outline after jumping to a referenced row.</span></p>
       <h3>Registration — FR-01 to FR-06</h3>
       <table class="spec"><tr><th>ID</th><th>Requirement</th><th>Tickets</th></tr>
         <tr id="fr-01"><td>FR-01</td><td>Users can start self-service registration</td><td>A-01, A-02, A-04</td></tr>
@@ -967,18 +962,9 @@
     if (!docview.hidden) closeDoc();
     if (refSource && refSource.isConnected) {
       refSource.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const host = refSource.closest('details.tkt') || refSource.closest('tr') || refSource;
-      host.classList.remove('flash');
-      setTimeout(() => host.classList.add('flash'), 40);
-      setTimeout(() => host.classList.remove('flash'), 1900);
     }
     refSource = null;
   };
-  document.querySelectorAll('.clearRefBtn').forEach(clearBtn => { clearBtn.onclick = () => {
-    try { history.replaceState(null, document.title, window.location.pathname + window.location.search); }
-    catch (e) { window.location.hash = ' '; }
-    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  }; });
   const allBtn = document.getElementById('toggleAll');
   if (allBtn) allBtn.onclick = () => {
     const boxes = [...document.querySelectorAll('#tickets details.tkt')];
