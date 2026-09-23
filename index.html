@@ -1201,7 +1201,7 @@
     };
     r.readAsText(f);
     e.target.value = '';
-  });
+  }));
   document.getElementById('cmtSaveBtn').onclick = () => {
     if (!currentDoc) return;
     const tin = document.getElementById('cmtText'), nin = document.getElementById('cmtName');
