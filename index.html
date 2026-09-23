@@ -199,18 +199,18 @@
     <div class="g-group">Delivery</div>
     <a class="g-link" href="#tickets"><span class="n">11</span>Tickets · 21 stories</a>
     <a class="g-link" href="#rollout"><span class="n">12</span>Rollout + next steps</a>
-    <div class="g-group">Full design · docs/cps-272/</div>
-    <a class="g-doc" href="docs/cps-272/HLR-Self-Service-Registration-KYC.md" title="High-Level Requirements source (FR-01…FR-33)"><span class="n">HLR</span>Requirements source</a>
-    <a class="g-doc" href="docs/cps-272/TDD-CPS-272-Self-Service-Registration-KYC.md" title="Canonical template-compliant TDD"><span class="n">TDD</span>Canonical design</a>
-    <a class="g-doc" href="docs/cps-272/00-README-index.md" title="Index + one-page summary"><span class="n">00</span>Index</a>
-    <a class="g-doc" href="docs/cps-272/01-TDD-main.md" title="Design rationale, gaps, risks"><span class="n">01</span>Rationale</a>
-    <a class="g-doc" href="docs/cps-272/02-architecture-diagrams.md" title="Full Mermaid set"><span class="n">02</span>Diagrams</a>
-    <a class="g-doc" href="docs/cps-272/03-api-design.md" title="Endpoint contracts"><span class="n">03</span>API design</a>
-    <a class="g-doc" href="docs/cps-272/04-data-model.md" title="Schemas + migration"><span class="n">04</span>Data model</a>
-    <a class="g-doc" href="docs/cps-272/05-user-stories-tickets.md" title="Jira-ready tickets"><span class="n">05</span>Tickets</a>
-    <a class="g-doc" href="docs/cps-272/06-security-errorhandling.md" title="Threat model + error catalogue"><span class="n">06</span>Security</a>
-    <a class="g-doc" href="docs/cps-272/07-glossary.md" title="Term definitions"><span class="n">07</span>Glossary</a>
-    <a class="g-doc" href="docs/cps-272/08-use-cases.md" title="End-to-end scenarios"><span class="n">08</span>Use cases</a>
+    <div class="g-group">Full design · docs/</div>
+    <a class="g-doc" href="docs/HLR-Self-Service-Registration-KYC.md" title="High-Level Requirements source (FR-01…FR-33)"><span class="n">HLR</span>Requirements source</a>
+    <a class="g-doc" href="docs/TDD-CPS-272-Self-Service-Registration-KYC.md" title="Canonical template-compliant TDD"><span class="n">TDD</span>Canonical design</a>
+    <a class="g-doc" href="docs/00-README-index.md" title="Index + one-page summary"><span class="n">00</span>Index</a>
+    <a class="g-doc" href="docs/01-TDD-main.md" title="Design rationale, gaps, risks"><span class="n">01</span>Rationale</a>
+    <a class="g-doc" href="docs/02-architecture-diagrams.md" title="Full Mermaid set"><span class="n">02</span>Diagrams</a>
+    <a class="g-doc" href="docs/03-api-design.md" title="Endpoint contracts"><span class="n">03</span>API design</a>
+    <a class="g-doc" href="docs/04-data-model.md" title="Schemas + migration"><span class="n">04</span>Data model</a>
+    <a class="g-doc" href="docs/05-user-stories-tickets.md" title="Jira-ready tickets"><span class="n">05</span>Tickets</a>
+    <a class="g-doc" href="docs/06-security-errorhandling.md" title="Threat model + error catalogue"><span class="n">06</span>Security</a>
+    <a class="g-doc" href="docs/07-glossary.md" title="Term definitions"><span class="n">07</span>Glossary</a>
+    <a class="g-doc" href="docs/08-use-cases.md" title="End-to-end scenarios"><span class="n">08</span>Use cases</a>
     <div class="side-foot">
       <p>21 tickets · ≈114 points · 10 use cases · additive-only, no breaking changes.</p>
       <p>Docs open rendered inside this deck (Live Server for local files).</p>
@@ -706,7 +706,7 @@
         <a class="btn primary" href="#tickets">Back to tickets ↑</a>
         <a class="btn ghost" href="#cover">Back to top ↑</a>
       </div>
-      <p class="muted" style="font-size:12px">TDD by the Auth Team · full design in <code>docs/cps-272/</code> · diagrams: Mermaid (needs internet once)</p>
+      <p class="muted" style="font-size:12px">TDD by the Auth Team · full design in <code>docs/</code> · diagrams: Mermaid (needs internet once)</p>
     </section>
   </div>
 </div>
@@ -811,9 +811,9 @@
         if (m[1]) {
           const a = document.createElement('a');
           a.className = 'ref';
-          a.href = 'docs/cps-272/' + ANNEX[m[1]];
+          a.href = 'docs/' + ANNEX[m[1]];
           a.textContent = m[1] + ' ' + m[2];
-          a.title = 'Open ' + ANNEX[m[1]] + ' in docs/cps-272/';
+          a.title = 'Open ' + ANNEX[m[1]] + ' in docs/';
           frag.appendChild(a);
         } else if (m[3]) {
           const a = document.createElement('a');
@@ -825,7 +825,7 @@
         } else if (m[4]) {
           const a = document.createElement('a');
           a.className = 'ref';
-          a.href = 'docs/cps-272/HLR-Self-Service-Registration-KYC.md';
+          a.href = 'docs/HLR-Self-Service-Registration-KYC.md';
           a.textContent = m[4] + (m[5] || '');
           a.title = 'Open the High-Level Requirements source file';
           frag.appendChild(a);

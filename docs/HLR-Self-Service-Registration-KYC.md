@@ -1,7 +1,7 @@
 # High-Level Requirements: Self-Service Registration and KYC Onboarding for RBAC (For Review)
 
 > **Provenance:** transcribed from the approved/for-review requirements text supplied with CPS-272.
-> This file is the citation target for every `HLR §n` and `FR-nn` reference across `docs/cps-272/`.
+> This file is the citation target for every `HLR §n` and `FR-nn` reference across `docs/`.
 > The three architecture images from the original (`image-20260814-082757/082917/083023.png`) are not
 > embedded here; their captions are preserved below. The companion BPO-applicability note referenced
 > in §3 is a separate document and is not included.

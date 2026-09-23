@@ -1,6 +1,6 @@
 # CPS-272 — Dev Presentation (Deployable)
 
-Audience-friendly cut of the full design in `docs/cps-272/`. For walking devs through the work
+Audience-friendly cut of the full design in `docs/`. For walking devs through the work
 in ~30 minutes without drowning them in the annexes.
 
 Standalone repo: push this folder to git and deploy to Vercel as a static site (no build
