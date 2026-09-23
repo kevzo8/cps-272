@@ -105,3 +105,5 @@ Short definitions for reviewers and implementers. Normative details live in the 
 | **CPS** | Jira project prefix for this workstream's tickets (CPS-272 epic, A/B/C/D stories). | `05` |
 | **LGU** | Local Government Unit — the typical tenant organisation (also: agencies, enterprises). | `05` personas |
 | **WAR** | Web Application Archive — the Java deployable built for the portal and onboarding backends. | Build docs |
+| **DOT** | Digital Onboarding Toolkit (Innovatrics) — the third-party ID inspection service: tamper, screenshot, expiry, and machine-readable-zone checks plus portrait crop; also selfie quality, liveness, and portrait match. Reused as-is by the self-service pipeline. | `05` C-02a, C-02b |
+| **MRZ** | Machine-Readable Zone — the coded strip on IDs that the inspector parses and validates. | `05` C-02a |
