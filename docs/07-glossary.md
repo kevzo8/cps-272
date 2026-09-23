@@ -28,6 +28,7 @@ Short definitions for reviewers and implementers. Normative details live in the 
 | Term | Meaning | Example / where used |
 |---|---|---|
 | **Identity verification (KYC)** | Step 2 question: "Are you the legitimate person behind this account?" ID + liveness + biometrics + records checks. | `01 §7` |
+| **KYC** | Know Your Customer — establishing and verifying the real-world identity behind an account (Step 2 of onboarding). | `01 §7` |
 | **Applicant** | The KYC-side record for a person being verified (may predate or outlive any single attempt). | `applicant{applicant_id, tenant_id, ...}` (`04 §4.1`) |
 | **Onboarding attempt** | One self-contained KYC submission (captures, OCR, verification results). Numbered per applicant; old attempts are `SUPERSEDED`, never overwritten. Latest `APPROVED` = current record. | `kyc_attempt`, `attempt_no` (`01 §7.3`, `04 §4.2`) |
 | **1:N matching** | Biometric search of one face/fingerprint against many enrolled identities, used to detect the same person holding another account. A hit always opens a review case — never auto-merges or auto-rejects. | MegaMatcher `/biometric` (`01 §7.2`) |
