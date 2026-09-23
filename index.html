@@ -865,12 +865,14 @@
     });
   }, { rootMargin: '-40% 0px -55% 0px' });
   secs.forEach((s) => s && io.observe(s));
-  document.querySelectorAll('a[href^="#"]').forEach((a) => a.addEventListener('click', (e) => {
+  document.addEventListener('click', (e) => {
+    const a = e.target && e.target.closest ? e.target.closest('a[href^="#"]') : null;
+    if (!a) return;
     const href = a.getAttribute('href');
     if (!href || href === '#') return;
     const t = document.querySelector(href);
     if (t) { e.preventDefault(); if (a.classList.contains('ref')) noteRef(a); if (!docview.hidden) closeDoc(); t.scrollIntoView({ behavior: 'smooth', block: a.classList.contains('ref') ? 'center' : 'start' }); }
-  }));
+  });
   function setTheme(t) {
     document.documentElement.dataset.theme = t;
     document.getElementById('themeLight').classList.toggle('active', t === 'light');
