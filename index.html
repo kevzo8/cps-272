@@ -563,6 +563,7 @@
             <button class="btn ghost exportBtn" id="exportBtn">Export JSON</button>
             <button class="btn ghost importBtn" id="importBtn">Import JSON</button>
             <input type="file" id="importFile" class="importFile" accept="application/json,.json" hidden>
+            <button class="btn ghost clearBtn">Clear board</button>
             <button class="btn primary" id="addTktBtn">+ Add ticket</button>
           </div>
         </div>
@@ -742,7 +743,7 @@
       <div class="kicker">13 · Comments and feedback</div>
       <h2>What the team thinks</h2>
       <p class="lead">Every comment written in any document's floating panel lands here, grouped by file. Write them in the viewer; manage them here.</p>
-      <p><button class="btn ghost exportBtn">Export JSON</button> <button class="btn ghost importBtn">Import JSON</button><input type="file" class="importFile" accept="application/json,.json" hidden> <span class="muted" style="font-size:12px">Same single file as Tickets: team, assignments, local tickets, comments.</span></p>
+      <p><button class="btn ghost exportBtn">Export JSON</button> <button class="btn ghost importBtn">Import JSON</button><input type="file" class="importFile" accept="application/json,.json" hidden> <button class="btn ghost clearBtn">Clear board</button> <span class="muted" style="font-size:12px">Same single file as Tickets: team, assignments, local tickets, comments.</span></p>
       <div id="allComments"></div>
     </section>
   </div>
@@ -1199,6 +1200,11 @@
     r.readAsText(f);
     e.target.value = '';
   }));
+  document.querySelectorAll('.clearBtn').forEach(b => { b.onclick = () => {
+    if (!confirm('Clear the whole board in this browser? This removes team, assignments, local tickets, and comments. Export first if you want a backup.')) return;
+    try { localStorage.removeItem(LS_A); localStorage.removeItem(LS_C); localStorage.removeItem(LS_T); localStorage.removeItem(LS_M); } catch (e) {}
+    location.reload();
+  }; });
   document.getElementById('cmtSaveBtn').onclick = () => {
     if (!currentDoc) return;
     const tin = document.getElementById('cmtText'), nin = document.getElementById('cmtName');
