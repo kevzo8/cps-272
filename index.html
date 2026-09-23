@@ -222,7 +222,7 @@
 
   <div class="g-main">
     <div class="g-top">
-      <button class="btn ghost" id="sideToggle" title="Toggle sidebar">◀</button>
+      <button class="btn ghost sideToggle" id="sideToggle" title="Toggle sidebar">◀</button>
       <span class="crumb" id="crumb">00 · Overview</span>
       <div class="spacer"></div>
       <a class="btn primary" href="#tickets">Skip to tickets ↓</a>
@@ -722,6 +722,7 @@
 </div>
 <div class="docview" id="docview" hidden>
   <div class="docview-bar">
+    <button class="btn ghost sideToggle" id="sideToggle2" title="Toggle sidebar">◀</button>
     <span class="crumb" id="doctitle">Document</span>
     <div class="spacer"></div>
     <a class="btn ghost" id="docraw" href="#" target="_blank" rel="noopener">Open raw</a>
@@ -1106,14 +1107,13 @@
   paintTeam();
   renderCustom();
   const shell = document.querySelector('.g-shell');
-  const sideBtn = document.getElementById('sideToggle');
   function setSide(open) {
     shell.classList.toggle('noside', !open);
     document.body.classList.toggle('side-hidden', !open);
-    sideBtn.textContent = open ? '◀' : '☰';
+    document.querySelectorAll('.sideToggle').forEach(b => { b.textContent = open ? '◀' : '☰'; });
     try { localStorage.setItem('cps272-side', open ? '1' : '0'); } catch (e) {}
   }
-  if (sideBtn) sideBtn.onclick = () => setSide(shell.classList.contains('noside'));
+  document.querySelectorAll('.sideToggle').forEach(b => { b.onclick = () => setSide(shell.classList.contains('noside')); });
   let sideOpen = true;
   try { sideOpen = localStorage.getItem('cps272-side') !== '0'; } catch (e) {}
   setSide(sideOpen);
