@@ -1193,7 +1193,9 @@
         if (data.assignments && typeof data.assignments === 'object') ASSIGN = data.assignments;
         if (Array.isArray(data.customTickets)) CUSTOM = data.customTickets.filter(c => c && c.id && c.title);
         if (data.comments && typeof data.comments === 'object') COMMENTS = data.comments;
-        saveJ(LS_T, TEAM); saveJ(LS_A, ASSIGN); saveJ(LS_C, CUSTOM);
+        saveJ(LS_T, TEAM); saveJ(LS_A, ASSIGN); saveJ(LS_C, CUSTOM); saveJ(LS_M, COMMENTS);
+        const nC = Object.values(COMMENTS).reduce((n, a) => n + (((a instanceof Array) ? a : []).length), 0);
+        alert('Imported from "' + f.name + '": ' + TEAM.length + ' team members, ' + Object.keys(ASSIGN).length + ' assignments, ' + CUSTOM.length + ' local tickets, ' + nC + ' comments. Reloading…');
         location.reload();
       } catch (err) { alert('Could not import: not a valid planning-board JSON file.'); }
     };
