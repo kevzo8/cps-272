@@ -43,8 +43,8 @@ What is the background of this project? What systems are currently in place?
 | System (repo) | Role today | Key facts for this design |
 |---|---|---|
 | auth-service SB (`svi-authentication-springboot-kyc`) | RBAC + auth source of truth. Spring Boot 4.0.5 / Java 25, Cassandra `auth_system`, 1 Keycloak realm per `tenants.realm_id`, context path `/spring/auth-services` | `POST /user/register` requires `@Permissions + @Authenticated + @Authorized` (admin/frontliner only — no public path). Login `POST /token`, face login `POST /login/face`, OIDC provider (`/oidc/*`, `svi_session` cookie). OTP (`totp` table, HMAC-SHA256) exists only for forgot-password; SMS send stubbed. `users` has `is_active/is_deleted/is_blocked` + `applicant_id/linked_person_id` but no KYC state. `GET /apps` + `GET /user/access-rights` already skip `requiresKYC && !verified` via live KYC lookup |
-| Onboarding web app (`generic-kyc-owa`, Angular 16) | Assisted KYC capture: ID select → capture → selfie → biometrics → form → `POST /kyc/submit/hfiles`, `POST /biometric`, DOT Innovatrics inspect, PhilSys `/psa/query/qr`, MegaMatcher 1:N | Boots Keycloak `login-required` on a single baked-in realm; no tenant headers/params; multi-tenancy = rebuild per tenant; no applicant self-bootstrap; contact-info page local-only |
-| KYC back office (`kyc-api`, Jersey/Java 8; `svi-kyc-api-springboot-kyc` skeleton) | Verification + evidence store (MariaDB + Cassandra + Solr + GFS/HFiles + MegaMatcher + DOT + eVerify) | `Applicant{applicant_id, tenant_id, application_status, current_workflow_status, kyc_verification_result}` + `GET /status`; no first-class review-case resource and no approve/redo/reject transitions |
+| Onboarding web app (`generic-kyc-owa`, Angular 16) | Assisted KYC capture: ID select → capture → selfie → biometrics → form → legacy submit paths, face checks, PhilSys `/psa/query/qr`, MegaMatcher 1:N | Boots Keycloak `login-required` on a single baked-in realm; no tenant headers/params; multi-tenancy = rebuild per tenant; no applicant self-bootstrap; contact-info page local-only; document-inspection/OCR provider TBD (no Innovatrics/DOT in current stack) |
+| KYC back office (`svi-kyc-api-springboot-kyc`, Spring Boot 4 / Java 25, `/spring/gen-kyc-api`) | Face-biometrics gateway + person registry (Cassandra `customer_kyc`, HFiles refs): `POST /customers/verify|identify|enroll/face`, `PATCH /customers/update/face`, `PATCH /customers/adjudication` (per-hit `UNIQUE\|DUPLICATE`), `POST /customers/save/transaction`, `GET /person`, `POST /psa/query/qr` | `applicant` + `facedb_result` + `person*` stores exist; no review-case resource, no approve/redo/reject, no attempt counter, no auth-service callback, no `self_user_id` |
 | Auth portal (`svi-authenticationportal-react-kyc`, React 19) | Login + app dashboard; OIDC code+PKCE; tenant picked post-username via `POST /tenant {username}` | No `/register` route; `userEndpoints.register` templates exist but have no callers |
 
 Full evidence in `01-TDD-main.md §2`. For a side-by-side visual of current vs proposed,
@@ -125,7 +125,7 @@ flowchart LR
   (Cassandra); `review_case` + `kyc_attempt` + `applicant.self_user_id` (KYC-API); `KYC_SELF_ONBOARD` +
   `KYC_REGISTRATION_REVIEW` permissions; SMS provider adapter.
 - **Reused as-is:** Keycloak per-realm model, `OTPUtils` hashing, `EmailSenderUtils`, login/token/OIDC
-  mechanics, DOT/PhilSys/MegaMatcher pipeline, `requiresKYC` app/permission flags, dual audit layers.
+  mechanics, face/PhilSys/MegaMatcher pipeline on Spring Boot paths (document inspection provider TBD), `requiresKYC` app/permission flags, dual audit layers.
 - Full C4 + deployment sketch: `02-architecture-diagrams.md §1–2, §9`.
 
 ### 5.2 Program Flow Schematics
@@ -175,14 +175,14 @@ sequenceDiagram
     autonumber
     actor U as Logged-in user
     participant O as OWA self mode
-    participant K as KYC-API
-    participant DOT as DOT Innovatrics
-    participant PS as PhilSys eVerify
-    participant MM as MegaMatcher 1:N
+    participant K as KYC back office (Spring Boot)
+    participant DI as Document inspection (provider TBD)
+    participant PS as PhilSys eVerify QR
+    participant MM as MegaMatcher ABIS
     O->>K: POST /kyc/self/bootstrap → applicant + attempt N
-    O->>DOT: inspect-id + inspect-selfie liveness
-    O->>PS: /psa/query/qr if PNID - stored as event
-    O->>MM: /biometric + verify/face - hit goes PENDING adjudication (back-office only)
+    O->>DI: inspect ID front/back + selfie quality
+    O->>PS: POST /psa/query/qr if PNID - stored as event
+    O->>MM: POST /customers/identify/face - hit goes PENDING adjudication (back-office only)
     O->>K: POST /kyc/self/attempts/N/submit → APPROVED or review_case
     K->>K: callback to auth-service → lifecycle append
 ```
@@ -209,9 +209,9 @@ The set of programs/services that will deliver results.
 |---|---|---|
 | **Service A1 — auth-service public registration** (`PublicSelfRegistrationController`, `SelfRegistrationService`, `PublicRateLimitFilter`) | Tenant resolve, pending + OTP lifecycle, post-OTP Keycloak/Cassandra creation | Uniform public APIs per `03 §2`; no oracle; all events audited |
 | **Service A2 — lifecycle + callback handler** (`LifecycleService`, `POST /internal/kyc-status-callback`) | Append-only history, materialised `kyc_status`, idempotent KYC transitions | HLR §3 golden history reproducible; stale events never regress state |
-| **Service A3 — KYC review-case + attempt APIs** (`/review-cases/*`, `/kyc/self/*`, rules/queue) | Self bootstrap/submit, scoped evidence, adjudication + approve/redo/reject | Attempt-versioned record; reviewer SLA operable |
+| **Service A3 — KYC review-case + attempt APIs** (`svi-kyc-api-springboot-kyc`: `/review-cases/*`, `/kyc/self/*`, rules/queue) | Self bootstrap/submit, scoped evidence, adjudication (extends `PATCH /customers/adjudication`) + approve/redo/reject | Attempt-versioned record; reviewer SLA operable |
 | **Module B1 — portal register/verify/done + status pages** (auth-portal `/self-service/:slug/*`) | Step-1 UX per HLR §5 + KYC-aware app list | E2E register→login→KYC CTA on desktop/mobile; accessible OTP entry |
-| **Module B2 — OWA self mode** (`/self/:slug`, `SelfBootstrapService`) | Unassisted capture→verify→submit reusing assisted pipeline | Same verification quality assisted vs self; idempotent resume |
+| **Module B2 — OWA self mode** (`/self/:slug`, `SelfBootstrapService`) | Unassisted capture→verify→submit reusing assisted pipeline, calls re-pointed to Spring Boot paths | Same verification quality assisted vs self; idempotent resume |
 | **Module B3 — reviewer queue + case detail** (KYC BO UI) | Triage with match-results-only evidence default | Decisions audited; raw biometrics gated + watermarked |
 
 ### 5.4 Inputs / Outputs
@@ -224,7 +224,7 @@ Details of program inputs and outputs.
 | I-02 | Identifier + password + T&C versions + CAPTCHA token (user → auth) | `pending_id` + OTP via email/SMS (auth → user); uniform shape either way |
 | I-03 | `pending_id + otp_code` (user → auth) | Keycloak user + `users` row + default role + history rows (auth → Keycloak/Cassandra) |
 | I-04 | Username + password (user → auth login) | Tokens + `kyc_status/kyc_action` + filtered apps; `id_token` with `kyc_verified` |
-| I-05 | ID images/video + selfie + consent (user → OWA) | DOT/PhilSys/MegaMatcher results + `applicant + attempt N` + evidence refs (OWA → KYC-API) |
+| I-05 | ID images/video + selfie + consent (user → OWA) | inspection/PhilSys/face-match results + `applicant + attempt N` + evidence refs (OWA → KYC-API) |
 | I-06 | Attempt submit (OWA → KYC-API) | `APPROVED` or `review_case`; status callback (KYC-API → auth-service) |
 | I-07 | Reviewer decision + reason/instructions (reviewer → KYC-API) | Attempt/applicant transition + lifecycle append + user notification (email/SMS) |
 | I-08 | Every mutation (all → audit) | `audit_trail` + `user_lifecycle_history` rows (queryable for support/compliance) |
@@ -281,7 +281,7 @@ flowchart TB
 
 - Portal pages reuse existing `api.ts`/`auth-fetch.ts` headers, modal/error patterns, `useInlineCss`/`useRenderTarget`
   conventions; new: channel radio, masked OTP destination, resend timer, T&C version display.
-- OWA adds a public route + bootstrap service; capture/DOT/biometric/submit components unchanged.
+- OWA adds a public route + bootstrap service; capture/inspection/biometric/submit components unchanged in structure (calls re-pointed, inspection provider per Q9).
 - Reviewer UI: queue table (case/user/issue/priority/status/SLA) + case detail per HLR §16 (account ref,
   ID + OCR with provenance, PhilSys event, liveness, biometric result-only, prior attempts, potential match).
 - Full route tables: `03 §4` (portal), `01 §7.1` (OWA modes).
@@ -353,7 +353,7 @@ Document all decision tables before starting development.
 
 **DT-02 — Automated KYC decision (KYC-API rules engine):**
 
-| ID valid | OCR ok | PhilSys (if PNID) | Liveness | 1:N clear | Info complete | Output |
+| ID valid | OCR ok (TBD provider) | PhilSys (if PNID) | Liveness ref (eVerify session) | 1:N clear | Info complete | Output |
 |---|---|---|---|---|---|---|
 | Y | Y | Y/NA | Y | Y | Y | `APPROVED → KYC_VERIFIED` |
 | Y | Y | Y/NA | Y | **N (hit)** | * | `UNDER_REVIEW` + PENDING back-office adjudication (never auto-merge; approve blocked until `DIFFERENT_PERSON` verdict) |
@@ -641,6 +641,7 @@ Issues still requiring a stakeholder decision. (Same list as `01 §12`.)
 6. OWA build strategy (single runtime-config vs per-tenant builds).
 7. BPO mirror depth on day one.
 8. PhilSys error-code taxonomy (auto-redo vs review).
+9. Document inspection + OCR provider: no Innovatrics/DOT in the current stack — select the provider (or reuse OWA-side capability) and define its contract for C-02a before self capture ships.
 
 ---
 

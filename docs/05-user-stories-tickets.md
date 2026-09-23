@@ -181,27 +181,27 @@ both disciplines and should be swarmed or split into backend/frontend subtasks a
   - [ ] The assisted end-to-end flow still passes unchanged.
 - **Use cases:** UC-04, UC-10 · **FR:** FR-11, FR-12, FR-13 · **Dependencies:** blocked by A-01 (slug resolution), B-01 (auth model); relates to assisted regression suite.
 
-### C-02a — Self Capture, DOT Inspection, and OCR Provenance [Backend and Integration]
-- **Title:** `C-02a Self ID Capture With DOT Inspection and OCR Provenance`
+### C-02a — Self Capture, Document Inspection, and OCR Provenance [Backend and Integration]
+- **Title:** `C-02a Self ID Capture With Document Inspection and OCR Provenance`
 - **Type:** Story · **Priority:** Critical · **Story Points:** 8 · **Component(s):** kyc-api, owa
 - **User story:** As a **Registered User**, I want to **photograph my ID by myself with the same fraud checks as assisted onboarding** so that **my document is verified remotely**.
 - **Requirements:**
-  1. Reuse the document inspector (tamper, machine-readable-zone, and expiry checks) plus portrait crop on self-captured ID front and back.
-  2. Keep three-way provenance for extracted data: the value read by OCR (text recognition), the value confirmed or corrected by the user, and the value obtained from external verification — stored separately, never overwriting each other.
-  3. Evidence files stay in file storage; the database keeps only file references and hashes; no raw personal data in logs.
+  1. OWA captures ID front and back (portrait crop included); document inspection — tamper, machine-readable-zone, and expiry checks — via the provider selected in `01 §12 Q9` (no Innovatrics/DOT in the current stack).
+  2. Keep three-way provenance for extracted data: the value read by OCR (text recognition, same TBD provider), the value confirmed or corrected by the user, and the value obtained from external verification — stored separately in `kyc_attempt.ocr_provenance`, never overwriting each other.
+  3. Evidence files stay in HFiles file storage; the database keeps only file references and hashes; no raw personal data in logs.
 - **Acceptance criteria:**
-  - [ ] A tampered or expired sample ID is flagged exactly as in assisted mode (parity test).
+  - [ ] A tampered or expired sample ID is flagged exactly as in assisted mode (parity test against the selected provider).
   - [ ] User corrections never overwrite OCR-extracted values (proven by querying all three).
-- **Use cases:** UC-04 · **FR:** FR-13, FR-14, FR-19 (partial) · **Dependencies:** blocked by C-01, C-03.
+- **Use cases:** UC-04 · **FR:** FR-13, FR-14, FR-19 (partial) · **Dependencies:** blocked by C-01, C-03; decision `01 §12 Q9` (inspection/OCR provider).
 
 ### C-02b — PhilSys, Liveness, and Biometric Matching [Backend and Integration]
 - **Title:** `C-02b PhilSys Verification With Liveness and Biometric Matching`
 - **Type:** Story · **Priority:** Critical · **Story Points:** 8 · **Component(s):** kyc-api, owa
 - **User story:** As a **Registered User**, I want **my face and national ID checked against official sources** so that **impersonation is caught**.
 - **Requirements:**
-  1. PhilSys eVerify (the national-ID check, invoked only when the submitted ID is a Philippine National ID); its result is stored as a verification event and never overwrites user data. Other ID types skip this step cleanly.
-  2. Selfie inspection for image quality, liveness (a real live person, not a photo), and similarity to the ID portrait.
-  3. One-to-many (1:N) biometric search — comparing the face against all enrolled faces to catch a second account by the same person. Any hit sends the attempt to human review with a pending adjudication; nothing is ever auto-merged or auto-rejected.
+  1. PhilSys eVerify QR passthrough (`POST /psa/query/qr`, invoked only when the submitted ID is a Philippine National ID); its result is stored as a verification event and never overwrites user data. Other ID types skip this step cleanly.
+  2. Selfie capture with quality checks; the liveness session id is forwarded to the eVerify gateway (no standalone liveness engine in the back office).
+  3. One-to-many (1:N) biometric search via `POST /customers/identify/face` — comparing the face against enrolled faces to catch a second account by the same person. Any hit sends the attempt to human review with a pending adjudication; nothing is ever auto-merged or auto-rejected.
 - **Acceptance criteria:**
   - [ ] The national-ID path invokes PhilSys and stores the event; other ID types skip cleanly.
   - [ ] A duplicate biometric always yields `UNDER_REVIEW` plus a review case; the user sees only a generic "under review" message.
@@ -215,9 +215,11 @@ both disciplines and should be swarmed or split into backend/frontend subtasks a
   1. A tenant-configurable extra-information form (fields come from configuration, never hard-coded per tenant).
   2. A submit endpoint for the attempt that runs the decision rules: either approved, or a review case for a human.
   3. A status callback from the KYC back office to the auth service carrying an idempotency key (a unique key per event so retried deliveries are applied exactly once) with a guard so stale events never move the status backwards.
+  4. Re-point the auth-service KYC client (`KYCAPIUtil` + `kyc-api-config`) from legacy paths to the Spring Boot paths (`/spring/gen-kyc-api/...`); keep the pull-based tenant/secret/settings lookups untouched.
 - **Acceptance criteria:**
   - [ ] An all-checks-pass submission marks the user verified in auth plus lifecycle history within the agreed time; retried callbacks are safe.
   - [ ] An exception submission creates a review case and marks the user under review; redelivered callbacks never regress the status.
+  - [ ] No auth-service call path still targets a legacy KYC endpoint (verified by config + contract test).
 - **Use cases:** UC-04, UC-05 · **FR:** FR-19, FR-20, FR-21 · **Dependencies:** blocked by C-02a, C-02b.
 
 ### C-03 — Attempt Versioning and Applicant Binding [Backend]
@@ -256,7 +258,7 @@ both disciplines and should be swarmed or split into backend/frontend subtasks a
 - **Title:** `D-02b Biometric Hit Adjudication by the Back Office`
 - **Type:** Story · **Priority:** Critical · **Story Points:** 5 · **Component(s):** kyc-api
 - **User story:** As a **back-office Adjudicator**, I want **identity-match hits to wait in pending state for my verdict** so that **no duplicate is auto-cleared and no user learns they were flagged as a possible duplicate**.
-- **Requirements:** A candidate-comparison endpoint (probe photo versus matched candidates, side by side) restricted to adjudication-permission holders, with gated access, watermarking, and audit; a verdict endpoint accepting same person, different person, or inconclusive, routed as follows — different person clears the hit and resumes automation, same person converts to reject-or-fraud handling with re-registration cool-down (the same contact is blocked from registering again for a configured number of days), inconclusive asks the user for a fresh capture. The verdict handler must also drive the existing biometric-engine endpoint `GET /biometric/adjudication` (`kyc-api` `GenOwaService.java:446`: different person calls it with `approve=true`, same person with `approve=false`) so the engine leaves adjudication-waiting state — the new case API adds the workflow, permission, routing, and audit the engine call lacks. Server rule: a duplicate case cannot be approved without a prior different-person verdict. All user-facing copy stays a generic "under review".
+- **Requirements:** A candidate-comparison endpoint (probe photo versus matched candidates, side by side) restricted to adjudication-permission holders, with gated access, watermarking, and audit; a verdict endpoint accepting same person, different person, or inconclusive, routed as follows — different person clears the hit and resumes automation, same person converts to reject-or-fraud handling with re-registration cool-down (the same contact is blocked from registering again for a configured number of days), inconclusive asks the user for a fresh capture. The verdict handler must also drive the existing `PATCH /customers/adjudication` (`request_id` + per-hit `hit_subject_id → UNIQUE|DUPLICATE`: different person sends `UNIQUE`, same person sends `DUPLICATE`) so the ABIS leaves adjudication-waiting state — the new case API adds the workflow, permission, routing, and audit the engine call lacks. Server rule: a duplicate case cannot be approved without a prior different-person verdict. All user-facing copy stays a generic "under review".
 - **Acceptance criteria:**
   - [ ] A hit attempt stays under review with no user-visible duplicate hint until a verdict exists.
   - [ ] Different person resumes the automated path; same person routes to reject or fraud handling plus cool-down; inconclusive routes to redo with fresh capture.
@@ -338,13 +340,13 @@ Jira for duplicate summaries before creating (checklist below).
 | B-02 | verification status page | No status page in portal; app list has no verification awareness |
 | B-03 | suspend endpoints, lifecycle read API | No `suspend` anywhere in auth-service src; no history table |
 | C-01 | self route, applicant self-bootstrap | No `/self` route in OWA routing (every "self" hit is "selfie"); no bootstrap or `self_user` concept in `kyc-api` |
-| C-02a | self capture pipeline | Document-inspector endpoints exist and are reused as-is; no self-service capture orchestration |
-| C-02b | PhilSys, liveness, and 1:N wiring for self flow | Vendor endpoints exist and are reused; no self-flow wiring or hit-to-case path |
-| C-02c | attempt submit, status callback | No `callback` push from KYC back office to auth service (`KYCAPIUtil` only pulls); no self submit endpoint |
+| C-02a | self capture pipeline + TBD inspection provider | No self-service capture orchestration; no document-inspection/OCR provider in the back office (Q9) |
+| C-02b | PhilSys QR, liveness passthrough, and 1:N wiring for self flow | `POST /psa/query/qr`, `/customers/identify|enroll/face` exist and are reused; no self-flow wiring or hit-to-case path |
+| C-02c | attempt submit, status callback, client re-point | No `callback` push from KYC back office to auth service (`KYCAPIUtil` only pulls); auth-service client still targets legacy paths; no self submit endpoint |
 | C-03 | attempt tables | No `kyc_attempt` in any analysed repo |
 | D-01 | review-case API | Only a generic status-patch endpoint plus fraud-list reads; no case resource |
 | D-02 | approve/redo/reject transitions | No transition endpoints; no reason-code list |
-| D-02b | case-level verdict API | Only the engine-level `GET /biometric/adjudication` exists (`GenOwaService.java:446`, `MMABISAccessor.java:1052,1079`) — raw MegaMatcher call with no case, no permission, no routing; the ticket wraps it and must call it |
+| D-02b | case-level verdict API | Only the engine-level `PATCH /customers/adjudication` exists (per-hit `UNIQUE|DUPLICATE`, no case, no permission, no routing); the ticket wraps it and must call it |
 | D-03 | reviewer screens | No dedicated reviewer frontend in the analysed sibling repos (host surface still to confirm) |
 | D-04 | redo notify plus deep link plus new attempt | None of the three exist |
 | D-05 | SMS adapter, five templates | SMS channel accepted but stubbed (`AuthenticationServiceImpl.java:730` logs "not yet fully implemented"); only the forgot-password email template exists |

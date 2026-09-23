@@ -500,7 +500,7 @@
         <tr><td>TLS</td><td>Transport Layer Security (HTTPS)</td><td>CDN</td><td>Content Delivery Network</td></tr>
         <tr><td>TDD</td><td>Technical Design Document</td><td>CPS</td><td>Jira project prefix for these tickets</td></tr>
         <tr><td>LGU</td><td>Local Government Unit (typical tenant)</td><td>WAR</td><td>Web Application Archive (Java deployable)</td></tr>
-        <tr><td>DOT</td><td>Digital Onboarding Toolkit (Innovatrics ID inspection)</td><td>MRZ</td><td>Machine-Readable Zone (the coded strip on IDs)</td></tr></table>
+        <tr><td>Doc inspection</td><td>ID authenticity checks (provider TBD, Q9 — no Innovatrics)</td><td>MRZ</td><td>Machine-Readable Zone (the coded strip on IDs)</td></tr></table>
     </section>
 
     <!-- 10 FRINDEX -->
@@ -647,15 +647,15 @@
         <p><b>Acceptance criteria:</b></p><ul class="ac"><li>No frontliner login is needed to open self mode.</li><li>Reopening resumes the same attempt; no duplicate applicant records.</li><li>The assisted end-to-end flow still passes unchanged.</li></ul>
         <p><b>FR</b> FR-11–FR-13 · <b>UC</b> UC-04, UC-10 · <b>Blocked by</b> A-01, B-01.</p>
       </div></details>
-      <details class="tkt"><summary>C-02a — Self ID Capture With DOT Inspection and OCR Provenance <span class="badge crit">Critical</span> <span class="badge pts">8 pts</span> <span class="badge comp">kyc-api</span> <span class="badge comp">owa</span></summary><div class="tbody">
+      <details class="tkt"><summary>C-02a — Self ID Capture With Document Inspection and OCR Provenance <span class="badge crit">Critical</span> <span class="badge pts">8 pts</span> <span class="badge comp">kyc-api</span> <span class="badge comp">owa</span></summary><div class="tbody">
         <p><b>Story:</b> As a <b>Registered User</b>, I want to <b>photograph my ID with the same fraud checks as assisted onboarding</b> so that <b>my document is verified remotely</b>.</p>
-        <p><b>Build:</b> reuse document inspector + portrait crop; keep OCR-read, user-confirmed, and externally-verified values separate; file refs + hashes only.</p>
-        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Tampered or expired sample IDs are flagged exactly as in assisted mode.</li><li>User corrections never overwrite OCR-extracted values.</li></ul>
+        <p><b>Build:</b> OWA capture + portrait crop; inspection and OCR via the provider picked in Q9 (none in the current stack); keep OCR-read, user-confirmed, and externally-verified values separate; file refs + hashes only.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Tampered or expired sample IDs are flagged exactly as in assisted mode (parity against the selected provider).</li><li>User corrections never overwrite OCR-extracted values.</li></ul>
         <p><b>FR</b> FR-13, FR-14 · <b>UC</b> UC-04 · <b>Blocked by</b> C-01, C-03.</p>
       </div></details>
       <details class="tkt"><summary>C-02b — PhilSys Verification With Liveness and Biometric Matching <span class="badge crit">Critical</span> <span class="badge pts">8 pts</span> <span class="badge comp">kyc-api</span> <span class="badge comp">owa</span></summary><div class="tbody">
         <p><b>Story:</b> As a <b>Registered User</b>, I want <b>my face and national ID checked against official sources</b> so that <b>impersonation is caught</b>.</p>
-        <p><b>Build:</b> PhilSys check for national IDs only (stored as evidence); selfie quality + liveness + portrait similarity; 1:N face search where any hit means human review — never auto-merge or auto-reject.</p>
+        <p><b>Build:</b> PhilSys QR check for national IDs only (stored as evidence); selfie quality checks with the liveness session id forwarded to eVerify; 1:N search via <code>POST /customers/identify/face</code> where any hit means human review — never auto-merge or auto-reject.</p>
         <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Non-national IDs skip the PhilSys step cleanly.</li><li>A duplicate biometric always yields review plus a case.</li><li>The user sees only a generic "under review" message.</li></ul>
         <p><b>FR</b> FR-15–FR-18 · <b>UC</b> UC-04, UC-06, UC-07 · <b>Blocked by</b> C-01, C-03.</p>
       </div></details>
@@ -687,7 +687,7 @@
       </div></details>
       <details class="tkt"><summary>D-02b — Biometric Hit Adjudication by the Back Office <span class="badge crit">Critical</span> <span class="badge pts">5 pts</span> <span class="badge comp">kyc-api</span></summary><div class="tbody">
         <p><b>Story:</b> As a <b>back-office Adjudicator</b>, I want <b>match hits to wait in pending for my verdict</b> so that <b>no duplicate is auto-cleared and no user learns they were flagged</b>.</p>
-        <p><b>Build</b> (<code>03 §5.3</code>): comparison endpoint (adjudicators only, gated/watermarked/audited) + verdict endpoint driving the <b>existing</b> engine call; server blocks approving unadjudicated duplicates.</p>
+        <p><b>Build</b> (<code>03 §5.3</code>): comparison endpoint (adjudicators only, gated/watermarked/audited) + verdict endpoint driving the <b>existing</b> <code>PATCH /customers/adjudication</code> (UNIQUE for different-person, DUPLICATE for same-person); server blocks approving unadjudicated duplicates.</p></p>
         <p><b>Acceptance criteria:</b></p><ul class="ac"><li>A hit attempt stays under review with no user-visible duplicate hint until a verdict exists.</li><li>Different person resumes automation; same person routes to reject or fraud handling plus cool-down; inconclusive routes to redo with fresh capture.</li><li>Approving an unadjudicated duplicate case is rejected by the server; every verdict is audited with the actor.</li><li>The engine-level adjudication call is issued per verdict; a case cannot close while the engine still waits.</li></ul>
         <p><b>FR</b> FR-22, FR-23, FR-25, FR-26, FR-32 · <b>UC</b> UC-06, UC-07 · <b>Blocked by</b> D-01.</p>
       </div></details>

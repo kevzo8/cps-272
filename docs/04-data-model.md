@@ -1,6 +1,6 @@
 # CPS-272 — Data Model Design
 
-Cassandra (`auth_system`) is authoritative for accounts + lifecycle; KYC-API stores (MariaDB applicant domain + Cassandra evidence index + GFS blobs + Solr) remain authoritative for verification evidence. **No cross-service direct DB access** — sync only via `POST /internal/kyc-status-callback` (`03 §5.4`).
+Cassandra (`auth_system`) is authoritative for accounts + lifecycle; the KYC back office (`svi-kyc-api-springboot-kyc`, Cassandra `customer_kyc` + `svi_person_db`, HFiles evidence refs) remains authoritative for verification evidence. **No cross-service direct DB access** — sync only via `POST /internal/kyc-status-callback` (`03 §5.4`).
 
 Conventions: CQL-style definitions, `uuid`/`text`/`timestamp`/`boolean`/`int`/`map<text,text>`. TTLs in seconds. Partitions designed for millions of self-registrations: point lookups by `(tenant_id, user_id)` / `(tenant_id, username)`, never full scans, no `ALLOW FILTERING`.
 
@@ -17,7 +17,7 @@ Conventions: CQL-style definitions, `uuid`/`text`/`timestamp`/`boolean`/`int`/`m
 | 5 | NEW `user_lifecycle_history` (append-only) | auth Cassandra | Immutable audit trail; HLR §3 |
 | 6 | NEW `kyc_attempts` (auth mirror) | auth Cassandra | Attempt↔lifecycle join without KYC lookup |
 | 7 | `audit_trail` event additions | auth Cassandra | New `AuditEvents` codes |
-| 8 | `applicant.self_user_id`, `applicant.source_channel`, `review_case` + `kyc_attempt` tables | KYC-API (MariaDB + Cassandra index) | Self binding, review state machine, versioning |
+| 8 | `applicant.self_user_id`, `applicant.source_channel`, `review_case` + `kyc_attempt` tables | KYC back office (Cassandra `customer_kyc`) | Self binding, review state machine, versioning |
 | 9 | `users_by_username` write path for self-created users | auth Cassandra | Existing table, new writer (public flow) |
 
 ---
@@ -164,59 +164,66 @@ KYC_MAX_ATTEMPTS_BEFORE_REVIEW=3 · IDENTIFIER_COOLDOWN_AFTER_REJECT_DAYS=30
 
 ---
 
-## 4. KYC-API stores
+## 4. KYC back-office stores (Cassandra `customer_kyc`)
 
-### 4.1 `applicant` — add self binding (MariaDB + Cassandra mirror)
-```sql
-ALTER TABLE applicant
-  ADD COLUMN self_user_id VARCHAR(64) NULL,      -- auth users.user_id (uuid as text)
-  ADD COLUMN source_channel VARCHAR(16) NOT NULL DEFAULT 'assisted',  -- assisted|self
-  ADD COLUMN current_attempt_no INT NOT NULL DEFAULT 1,
-  ADD INDEX idx_applicant_self (self_user_id),
-  ADD INDEX idx_applicant_tenant_status (tenant_id, application_status);
+Existing tables reused as-is: `applicant PK(tenant_id, applicant_id)` (biographics, `application_status`, `current_workflow_status`, `kyc_verification_result`), `facedb_result PK(tenant_id, subject_id, applicant_id)` (`encounter_id`, `duplicate_id`, `hit_score`), `person PK(tenant_id, person_id)` + `person_by_contact` / `person_by_identity` indexes, `audit_trail PK(tenant_id, audit_id, timestamp DESC)`.
+
+### 4.1 `applicant` — add self binding (CQL)
+```cql
+ALTER TABLE customer_kyc.applicant ADD self_user_id text;       -- auth users.user_id (uuid as text)
+ALTER TABLE customer_kyc.applicant ADD source_channel text;     -- assisted|self
+ALTER TABLE customer_kyc.applicant ADD current_attempt_no int;
+CREATE INDEX IF NOT EXISTS applicant_self_idx ON customer_kyc.applicant (self_user_id);
 ```
 
-### 4.2 NEW `kyc_attempt` (MariaDB authoritative; Cassandra index for reads)
-```sql
-CREATE TABLE kyc_attempt (
-  applicant_id VARCHAR(64) NOT NULL,
-  attempt_no INT NOT NULL,
-  tenant_id VARCHAR(64) NOT NULL,
-  status VARCHAR(24) NOT NULL,       -- IN_PROGRESS|SUBMITTED|UNDER_REVIEW|REDO_REQUESTED|APPROVED|REJECTED|SUPERSEDED
-  id_type VARCHAR(32), id_no_hash VARCHAR(128),
-  ocr_provenance JSON,               -- {ocr:{…}, user_confirmed:{…}, externally_verified:{…}}
-  dot_session_id VARCHAR(128), philsys_txn_id VARCHAR(128),
-  liveness_result VARCHAR(32), biometric_encounter_id VARCHAR(128), biometric_hit JSON,
-  evidence_gfs_refs JSON,            -- HFiles/GFS pointers, never raw blobs in DB
-  submitted_at DATETIME, decided_at DATETIME, decided_by VARCHAR(64),
+### 4.2 NEW `kyc_attempt` (Cassandra)
+```cql
+CREATE TABLE IF NOT EXISTS customer_kyc.kyc_attempt (
+  applicant_id text,
+  attempt_no int,
+  tenant_id uuid,
+  status text,                  -- IN_PROGRESS|SUBMITTED|UNDER_REVIEW|REDO_REQUESTED|APPROVED|REJECTED|SUPERSEDED
+  id_type text,
+  id_no_hash text,
+  ocr_provenance map<text,text>, -- ocr / user_confirmed / externally_verified
+  philsys_txn_id text,
+  liveness_session_id text,      -- forwarded to eVerify; no standalone liveness engine
+  biometric_encounter_id text,
+  biometric_hit text,            -- JSON: duplicate_id, hit_score
+  evidence_hfiles_refs set<text>, -- HFiles pointers, never raw blobs in DB
+  submitted_at timestamp,
+  decided_at timestamp,
+  decided_by text,
   PRIMARY KEY (applicant_id, attempt_no)
-);
+) WITH CLUSTERING ORDER BY (attempt_no DESC);
 ```
 
-### 4.3 NEW `review_case` (MariaDB)
-```sql
-CREATE TABLE review_case (
-  case_id VARCHAR(64) PRIMARY KEY,
-  tenant_id VARCHAR(64) NOT NULL,
-  applicant_id VARCHAR(64) NOT NULL,
-  attempt_no INT NOT NULL,
-  issue_type VARCHAR(32) NOT NULL,   -- UNCLEAR_ID|OCR_CONFLICT|PHILSYS_MISMATCH|LIVENESS_FAIL|DUP_BIOMETRIC|CONFLICT_ATTRS|OTHER
-  priority VARCHAR(16) NOT NULL DEFAULT 'MEDIUM',  -- HIGH|MEDIUM|LOW (rules-derived)
-  status VARCHAR(16) NOT NULL DEFAULT 'PENDING',   -- PENDING|IN_REVIEW|DECIDED
-  assignee VARCHAR(64) NULL,
-  sla_due DATETIME NOT NULL,
-  decision VARCHAR(16) NULL,         -- APPROVED|REDO|REJECTED
-  adjudication_verdict VARCHAR(16) NULL,  -- SAME_PERSON|DIFFERENT_PERSON|INCONCLUSIVE (DUP_BIOMETRIC only, back-office)
-  adjudicated_by VARCHAR(64) NULL,
-  adjudicated_at DATETIME NULL,
-  reason_code VARCHAR(32) NULL, remarks TEXT NULL,
-  created_at DATETIME, updated_at DATETIME,
-  INDEX idx_case_queue (tenant_id, status, priority, sla_due)
-);
+### 4.3 NEW `review_case` (Cassandra)
+```cql
+CREATE TABLE IF NOT EXISTS customer_kyc.review_case (
+  tenant_id uuid,
+  status text,                   -- PENDING|IN_REVIEW|DECIDED (partition for queue reads)
+  sla_due timestamp,
+  case_id uuid,
+  applicant_id text,
+  attempt_no int,
+  issue_type text,               -- UNCLEAR_ID|OCR_CONFLICT|PHILSYS_MISMATCH|LIVENESS_FAIL|DUP_BIOMETRIC|CONFLICT_ATTRS|OTHER
+  priority text,                 -- HIGH|MEDIUM|LOW (rules-derived)
+  assignee text,
+  decision text,                 -- APPROVED|REDO|REJECTED
+  adjudication_verdict text,     -- SAME_PERSON|DIFFERENT_PERSON|INCONCLUSIVE (DUP_BIOMETRIC only, back-office)
+  adjudicated_by text,
+  adjudicated_at timestamp,
+  reason_code text,
+  remarks text,
+  created_at timestamp,
+  updated_at timestamp,
+  PRIMARY KEY ((tenant_id, status), sla_due, case_id)
+) WITH CLUSTERING ORDER BY (sla_due ASC, case_id ASC);
 ```
 
 ### 4.4 Evidence & retention
-Raw ID/selfie/video stay in GFS/HFiles (existing); DB holds **references + hashes + results**. Reviewer evidence API redacts raw biometric templates by default. Retention policy (raw vs metadata) is a legal decision (`01 §12`) — schema supports per-attempt purge (delete blobs, keep `kyc_attempt` metadata + hashes).
+Raw ID/selfie/video stay in HFiles (existing); DB holds **references + hashes + results**. Reviewer evidence API redacts raw biometric templates by default. Retention policy (raw vs metadata) is a legal decision (`01 §12`) — schema supports per-attempt purge (delete blobs, keep `kyc_attempt` metadata + hashes).
 
 ---
 

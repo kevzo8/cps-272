@@ -14,7 +14,7 @@ Enable **unassisted self-service registration** for whitelisted tenants: any per
 - Tenant identification + Keycloak realm integration.
 - OTP verification + account creation (email + mobile).
 - Integration with existing auth-service/Cassandra/RBAC (no RBAC redesign).
-- Integration with existing KYC back office (applicant, DOT/Innovatrics, PhilSys eVerify, MegaMatcher 1:N, HFiles/GFS).
+- Integration with the current KYC back office (`svi-kyc-api-springboot-kyc`: person registry, MegaMatcher ABIS face verify/identify/enroll/adjudicate, PhilSys eVerify QR passthrough, HFiles evidence refs).
 - KYC status + account lifecycle + immutable history + attempt versioning.
 - Required API/interface + database changes (design-level schemas/contracts).
 - Security, error handling, auditability, configurability.
@@ -51,14 +51,14 @@ Enable **unassisted self-service registration** for whitelisted tenants: any per
 
 ### 2.2 Onboarding web app (`generic-kyc-owa`, Angular 16)
 - Routes driven by `pageRoutingConfig.json`: `landing → getStarted(consent) → idSelect → id capture → selfie → (biometrics) → onlineAppForm → review → submit → lastPage(QR/email)`.
-- Backend calls: `POST /kyc/submit/hfiles` (FormData with `ID_FRONT_IMG/VID, SELFIE_IMG/VID…`), `POST /biometric` (face/finger to MegaMatcher), `POST /get-qrcode|send-email|send-sms`, `GET /getcounselordetails|options`, DOT Innovatrics `/dot/*` for ID inspect + selfie/liveness, PhilSys `/psa/query/qr` for PNID.
+- Backend calls (legacy context paths, to be re-pointed for self mode): `POST /kyc/submit/hfiles` (FormData with `ID_FRONT_IMG/VID, SELFIE_IMG/VID…`), face calls, `POST /get-qrcode|send-email|send-sms`, `GET /getcounselordetails|options`, PhilSys `/psa/query/qr` for PNID. Document inspection + OCR provider is TBD (no Innovatrics/DOT in the current stack — see Q9).
 - **Gaps for self-service:** (a) bootstrap requires Keycloak `login-required` on a **single baked-in realm** (`keycloakConfiguration.json`); (b) **no tenant headers/params**; multi-tenancy = rebuild per tenant; (c) **no applicant bootstrap API** — frontliner just drives the same device; (d) contact-info page is local-only; `ng-otp-input` is installed but unused.
 
-### 2.3 KYC back office (`kyc-api`, Jersey/Java 8)
-- Stores: MariaDB + Cassandra + Solr + GFS/HFiles + MegaMatcher ABIS + Innovatrics DOT + eVerify/NIDAS.
-- `Applicant{applicant_id, tenant_id, svi_person_id, application_status(PENDING/VERIFIED/REJECTED), current_workflow_status(…NEEDS_REVIEW…), kyc_verification_result(A/R/P), subject_id/duplicate_id…}`, plus `SubmittedID, KYCResult, FaceDBResult`, fraud mirrors.
-- Endpoints: `POST /kyc/submit/hfiles|submitapplicationform|biometric|verify/face|identify/*`, `GET /status?id=|/status/all?tenant_id=|/kyc-result`, `POST /status` (generic patch), `POST /updatekycresult`, `GET /filter-kycresult|getFraudList…`, `DELETE /deleteapplicant`.
-- **Gaps:** no first-class `review_case` resource; **no `approve/redo/reject` transitions**; redo = ad-hoc resubmit; no attempt counter (resubmits risk overwriting); reviewer sees raw evidence without a scoped evidence-view contract.
+### 2.3 KYC back office (`svi-kyc-api-springboot-kyc`, Spring Boot 4 / Java 25)
+- Current service (replaces the legacy Jersey `kyc-api`; no MariaDB, Solr, Innovatrics/DOT, OCR, or standalone liveness engine). Context path `/spring/gen-kyc-api` on active branches (checked-out tree is a skeleton; the face/PhilSys/person implementation lives on feature branches, fullest `origin/feature/merging-branch`).
+- Stores (Cassandra `customer_kyc` + `svi_person_db`, HFiles evidence refs): `applicant{tenant_id, applicant_id, biographics, application_status, current_workflow_status, kyc_verification_result}`, `facedb_result{tenant_id, subject_id, applicant_id, encounter_id, duplicate_id, hit_score}`, `person{tenant_id, person_id, …}` + `person_by_contact`, `person_by_identity` indexes, `svi_personid_synonym` (person↔biometric bridge), `audit_trail`.
+- Real endpoints: `POST /customers/verify/face` (1:1), `POST /customers/identify/face` (1:N or by person_id), `POST /customers/enroll/face` (returns `SUCCESS`/`DUPLICATE_FOUND`/`ADJUDICATION_WAITING`), `PATCH /customers/update/face`, `PATCH /customers/adjudication` (`request_id` + per-hit `UNIQUE|DUPLICATE`), `GET /customers/biometrics/face` (evidence image), `POST /customers/save/transaction` (person registry), `GET /person`, `POST /psa/query/qr` (PhilSys eVerify passthrough, liveness session-id only).
+- **Gaps:** no first-class `review_case` resource; **no `approve/redo/reject` transitions**; no attempt counter (resubmits risk overwriting); no status callback to auth-service (KYC only pulls tenant/secrets/settings from auth-service today); no `self_user_id` binding; reviewer sees raw evidence without a scoped evidence-view contract.
 
 ### 2.4 Auth portal (`svi-authenticationportal-react-kyc`, React 19)
 - Routes: `/login/*` (username → tenant-password → password / face / device, forgot-password-email→otp→reset), `/main/*` behind `MainSessionGate` (OIDC `code + PKCE + svi_session` cookie). Headers: `X-Client-ID (localStorage), X-App-ID (env), X-Tenant-ID, X-Realm-ID, Authorization: Bearer (memory-only)`.
@@ -72,10 +72,11 @@ Enable **unassisted self-service registration** for whitelisted tenants: any per
 | G-03 | OTP scoped to existing users + forgot-password only | Must generalise for pre-account verification |
 | G-04 | No `kyc_status` / lifecycle history / attempt versioning in auth DB | Blocks HLR §3, §15, §18 |
 | G-05 | OWA single-realm, no tenant context, login-required | Blocks unassisted access |
-| G-06 | No review-case state machine in KYC-API | Blocks FR-22…FR-26 |
+| G-06 | No review-case state machine in KYC back office | Blocks FR-22…FR-26 |
 | G-07 | KYC gating is per-request live lookup, no cached claim | Latency + outage coupling; blocks §7 enforcement |
 | G-08 | SMS OTP + CAPTCHA + rate-limit incomplete | Blocks NFR security |
 | G-09 | Keycloak user lifecycle (create/disable/delete) not specified for self-service abuse cases | Orphaned IdP accounts risk |
+| G-10 | Auth-service KYC client still targets legacy paths; document inspection + OCR provider undecided (no DOT/Innovatrics in current stack) | Self pipeline needs re-pointing (C-02c) + provider decision (Q9) |
 
 ---
 
@@ -106,8 +107,8 @@ Enable **unassisted self-service registration** for whitelisted tenants: any per
         │                          └─ Lifecycle history writer
         │                                │  Step 2: launch OWA self mode
         ▼                                ▼
-[Self-Service OWA (same Angular app, public route)] ─▶ [KYC-API back office]
-        │  ID capture / DOT inspect / liveness / PhilSys / MegaMatcher 1:N
+[Self-Service OWA (same Angular app, public route)] ─▶ [KYC back office (Spring Boot)]
+        │  ID capture / doc inspect (TBD) / PhilSys QR / MegaMatcher 1:N via /customers/*
         └─▶ [Review Queue (KYC BO UI + new review-case API)] ─▶ notify (email/SMS)
 ```
 
@@ -119,8 +120,8 @@ Full C4 + sequences: see `02-architecture-diagrams.md`.
 | Self-Service Registration UI (`/self-service/:slug/register|verify|password|done`) | `svi-authenticationportal-react-kyc` (extend) | **NEW pages**, reuse `api.ts`, tenant store, modals |
 | Public auth-service APIs: `POST /public/tenants/resolve`, `/public/registration/*`, `GET /public/config/{slug}` | `svi-authentication-springboot-kyc` | **NEW controller** (`PublicSelfRegistrationController`), reuse filters pattern (new public rate-limit filter), `TenantService`, `OTPUtils`, `KeycloakUtils`, `AuditTrailUtils` |
 | `pending_registrations`, `registration_otps` (or generalised `totp`), `user_lifecycle_history`, `kyc_attempts` (+ `users.kyc_status` etc.) | auth Cassandra | **NEW tables / columns** (`04-data-model.md`) |
-| OWA self mode (`/self/:slug`, `mode=self`, applicant self-bootstrap) | `generic-kyc-owa` | **CHANGED**: new public route + `SelfBootstrapService`, reuse capture/DOT/biometric/submit pipeline |
-| Review-case API + attempt API (`/review-cases`, `/kyc/attempts`, approve/redo/reject) | `kyc-api` | **NEW resources** over existing `Applicant` store |
+| OWA self mode (`/self/:slug`, `mode=self`, applicant self-bootstrap) | `generic-kyc-owa` | **CHANGED**: new public route + `SelfBootstrapService`, reuse capture/biometric/submit pipeline; re-point KYC calls from legacy paths to Spring Boot `/customers/*`, `/psa/query/qr` |
+| Review-case API + attempt API (`/review-cases`, `/kyc/attempts`, approve/redo/reject) | `svi-kyc-api-springboot-kyc` | **NEW resources** over existing `applicant`/`facedb_result` stores; adjudication extends existing `PATCH /customers/adjudication` |
 | Reviewer UI (queue + case detail + evidence viewer) | KYC BO frontend (existing admin, scope in `05`) | **CHANGED/NEW screens** gated by new `KYC_REGISTRATION_REVIEW` permission |
 | Login/KYC decision + `kyc_verified` claim in access + ID tokens | auth-service | **CHANGED**: enrich `POST /token`, `GET /apps`, `GET /user/access-rights`, `POST /oidc/token` |
 | Notifications (OTP, redo, approve, reject) | auth-service via existing `EmailSenderUtils` + new SMS provider adapter | **CHANGED**: templates + provider interface |
@@ -208,14 +209,14 @@ OTP short expiry + single-use; resend/attempt caps; rate limits by identifier + 
 | Bootstrap auth | Frontliner Keycloak login (`login-required`) | **End-user Bearer** (just-registered account) + `slug`; OWA calls `POST /kyc/self/bootstrap` to create-or-resume applicant bound to `self user_id` |
 | Tenant context | Baked-in build config | Runtime `slug → tenant_id` (+ `X-Tenant-ID` header on every KYC call) |
 | Applicant binding | None (counsellor-attributed) | `applicant.tenant_id + applicant.self_user_id` (= auth `users.user_id`); duplicate bootstrap returns existing `IN_PROGRESS` attempt |
-| ID/selfie/biometric pipeline | As today | **Identical** (no fork): ID select → capture → DOT inspect → OCR confirm → PhilSys (PNID) → liveness/selfie → MegaMatcher 1:N → additional info → submit |
+| ID/selfie/biometric pipeline | As today (OWA capture; checks via current back-office paths) | **Same stages, Spring Boot paths**: ID select → capture → document inspection (provider TBD, Q9) → OCR confirm (provider TBD) → PhilSys QR (`/psa/query/qr`, PNID) → selfie + liveness session → MegaMatcher 1:N (`/customers/identify/face`, hits via enroll/identify adjudication flow) → additional info → submit |
 | Attribution | `AGENT_NAME/AGENT_ID` | `source_channel=self`, `device_fp`, IP; no agent fields |
 
-### 7.2 Verification pipeline (unchanged internals)
-ID capture → DOT `inspect-id` (tamper/MRZ/expiry) → OCR extract (retain **three-way provenance**: `ocr_extracted` vs `user_confirmed` vs `externally_verified`) → if PNID → PhilSys eVerify (`/psa/query/qr`, result stored as verification **event**, never overwriting user data) → liveness + selfie (`inspect-selfie`) → MegaMatcher 1:N (`/biometric`, `/verify/face`, `subject_id/duplicate_id/hit_score`) → configurable additional-info form → rules-engine decision → `APPROVED → KYC_VERIFIED` | `NEEDS_REVIEW → KYC_REVIEW + review_case` | `auto-reject only on hard-fail policy` (configurable; default is review, never silent auto-reject on biometrics alone).
+### 7.2 Verification pipeline (Spring Boot paths)
+ID capture (OWA) → document inspection (provider TBD, Q9: tamper/expiry/portrait checks) → OCR extract via TBD provider (retain **three-way provenance**: `ocr_extracted` vs `user_confirmed` vs `externally_verified`) → if PNID → PhilSys eVerify QR passthrough (`POST /psa/query/qr`, result stored as verification **event**, never overwriting user data) → selfie capture + liveness session id forwarded to eVerify → MegaMatcher 1:N (`POST /customers/identify/face`; enroll path returns `SUCCESS`/`DUPLICATE_FOUND`/`ADJUDICATION_WAITING` with `encounter_id`/`duplicate_id`/`hit_score`) → configurable additional-info form → rules-engine decision → `APPROVED → KYC_VERIFIED` | `NEEDS_REVIEW → KYC_REVIEW + review_case` | `auto-reject only on hard-fail policy` (configurable; default is review, never silent auto-reject on biometrics alone).
 
 ### 7.3 Attempt versioning (HLR §15)
-Every submit = new `kyc_attempts{applicant_id, attempt_no, …status…}` row + immutable evidence references (GFS/HFiles IDs, DOT session IDs, PhilSys txn IDs, MegaMatcher `encounter_id`). Prior attempts transition to `SUPERSEDED` (status change only, data untouched). Latest `APPROVED` attempt = current KYC record. Auth lifecycle history links each transition to `kyc_attempt_id`.
+Every submit = new `kyc_attempts{applicant_id, attempt_no, …status…}` row + immutable evidence references (HFiles refs, PhilSys txn IDs, MegaMatcher `encounter_id`). Prior attempts transition to `SUPERSEDED` (status change only, data untouched). Latest `APPROVED` attempt = current KYC record. Auth lifecycle history links each transition to `kyc_attempt_id`.
 
 ---
 
@@ -225,12 +226,12 @@ Every submit = new `kyc_attempts{applicant_id, attempt_no, …status…}` row + 
 Exceptions (unclear ID, OCR conflict, PhilSys mismatch, liveness fail, **potential duplicate 1:N hit**, conflicting attributes) → `review_case{case_id, tenant_id, applicant_id, attempt_no, issue_type, priority, status(PENDING|IN_REVIEW|DECIDED), sla_due}` + notify reviewer pool. **No auto-merge/delete** on duplicate hits — always a case.
 
 ### 8.2 Biometric adjudication (back-office only)
-A 1:N hit — similar face/fingerprint above threshold, or closely matching identity info across accounts (the OWA `ADJUDICATION_WAITING` outcome) — puts the attempt in `UNDER_REVIEW` and the case in `PENDING` **adjudication**. The user is told only "under review" and stays in `KYC_REVIEW` until a verdict exists; they are never told a duplicate was suspected. Adjudication is performed exclusively by back-office adjudicators holding a dedicated `KYC_BIOMETRIC_ADJUDICATION` permission — general reviewers see match-result-only evidence and cannot clear a biometric hit, and adjudication is not exposed to self-service users, frontliners, or any public API. The adjudicator compares probe vs candidate(s) side-by-side (gated, watermarked, audited evidence view reusing the existing KYC-API `GET /biometric/adjudication` candidate listing) and records one verdict:
+A 1:N hit — similar face/fingerprint above threshold, or closely matching identity info across accounts (the OWA `ADJUDICATION_WAITING` outcome) — puts the attempt in `UNDER_REVIEW` and the case in `PENDING` **adjudication**. The user is told only "under review" and stays in `KYC_REVIEW` until a verdict exists; they are never told a duplicate was suspected. Adjudication is performed exclusively by back-office adjudicators holding a dedicated `KYC_BIOMETRIC_ADJUDICATION` permission — general reviewers see match-result-only evidence and cannot clear a biometric hit, and adjudication is not exposed to self-service users, frontliners, or any public API. The adjudicator compares probe vs candidate(s) side-by-side (gated, watermarked, audited evidence view; candidate images via existing `GET /customers/biometrics/face`, hit enrichment as in `AbisAdjudicationEnricher`) and records one verdict:
 - **DIFFERENT_PERSON** → hit cleared; the attempt resumes the automated decision path (approves if everything else passes, otherwise normal review).
 - **SAME_PERSON** → duplicate confirmed; the case converts to duplicate handling (reviewer rejects, optionally fraud-escalates per tenant policy; identifier/person cool-down ensures retries re-hit rather than slip through).
 - **INCONCLUSIVE** → request redo with fresh capture (non-technical user instructions).
 
-Server rule: a `DUP_BIOMETRIC` case cannot be **approved** without a prior `DIFFERENT_PERSON` verdict; redo/reject remain available. Adjudication carries the shortest SLA (default HIGH/4h) since it blocks onboarding.
+Server rule: a `DUP_BIOMETRIC` case cannot be **approved** without a prior `DIFFERENT_PERSON` verdict; the verdict handler must also drive the existing `PATCH /customers/adjudication` (`request_id` + per-hit `UNIQUE` for different-person, `DUPLICATE` for same-person) so the ABIS leaves adjudication-waiting state. Redo/reject remain available. Adjudication carries the shortest SLA (default HIGH/4h) since it blocks onboarding.
 
 ### 8.3 Reviewer decisions (exactly three)
 1. **Approve** → attempt `APPROVED`, applicant `VERIFIED`, auth lifecycle `KYC_VERIFIED`, notify user, close case.
@@ -276,13 +277,13 @@ Lifecycle history is the **system-of-record** for the self-service journey and d
 | DEP-01 | Keycloak Admin API availability + service account per realm | Platform | User create/disable; rate limits to confirm |
 | DEP-02 | SMS provider (OTP + notifications) | Vendor | Current SMS is stubbed — contract + SLA needed |
 | DEP-03 | Email sender throughput (OTP burst) | Platform | Existing `EmailSenderUtils` load-test |
-| DEP-04 | KYC-API review-case + attempt endpoints | KYC BO team | Contract in `03 §5` |
+| DEP-04 | KYC back-office review-case + attempt endpoints (new) + ABIS adjudicate (exists: `PATCH /customers/adjudication`) | KYC BO team | Contract in `03 §5` |
 | DEP-05 | OWA self-mode + portal register pages | Frontend teams | `05` tickets |
 | DEP-06 | `KYC_REGISTRATION_REVIEW` permission + reviewer provisioning | RBAC admin | |
 | DEP-07 | Legacy `svi-authentication-java-kyc` parity check | Backend | Do not assume endpoint migrated until callers verified (per README guardrail) |
 
 ### Assumptions
-A-01: 1 tenant = 1 Keycloak realm (unchanged). A-02: Email + SMS channels both required; tenants may disable one channel. A-03: PhilSys/DOT/MegaMatcher contracts unchanged. A-04: Cassandra TTL + counters available as today. A-05: OIDC `svi_session` cookie flow unchanged; only claims enriched. A-06: English + local-language notification templates are client-supplied.
+A-01: 1 tenant = 1 Keycloak realm (unchanged). A-02: Email + SMS channels both required; tenants may disable one channel. A-03: PhilSys/MegaMatcher contracts unchanged (merging-branch paths); document-inspection/OCR provider TBD (Q9). A-04: Cassandra TTL + counters available as today. A-05: OIDC `svi_session` cookie flow unchanged; only claims enriched. A-06: English + local-language notification templates are client-supplied.
 
 ### Risks & mitigations
 | Risk | Likelihood/Impact | Mitigation |
@@ -308,6 +309,7 @@ A-01: 1 tenant = 1 Keycloak realm (unchanged). A-02: Email + SMS channels both r
 6. OWA build strategy: single runtime-config build vs continued per-tenant builds.
 7. BPO mirror depth: which review events must also become BPO work items on day one?
 8. PhilSys failure modes: which eVerify error codes auto-redo vs review?
+9. Document inspection + OCR provider: no Innovatrics/DOT in the current stack — select the ID authenticity/OCR provider (or reuse OWA-side capability) and define its contract for C-02a before self capture ships.
 
 ## 13. Deliverable Map (DoD)
 - Architecture/sequence/flows → `02-architecture-diagrams.md`.

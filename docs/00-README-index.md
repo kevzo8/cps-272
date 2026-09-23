@@ -2,7 +2,7 @@
 ## Technical Design Document (TDD) Index
 
 **Ticket:** CPS-272 — Technical Design: Self-Service User Registration with KYC Integration
-**Workspace analysed:** `svi-authentication-springboot-kyc` (auth-service SB), `generic-kyc-owa` (onboarding web app, Angular 16), `kyc-api` / `svi-kyc-api-springboot-kyc` (KYC back office), `svi-authenticationportal-react-kyc` (auth portal, React 19), `svi-authentication-java-kyc` (legacy)
+**Workspace analysed:** `svi-authentication-springboot-kyc` (auth-service SB), `generic-kyc-owa` (onboarding web app, Angular 16), `svi-kyc-api-springboot-kyc` (current KYC back office; legacy Jersey `kyc-api` retired), `svi-authenticationportal-react-kyc` (auth portal, React 19), `svi-authentication-java-kyc` (legacy)
 **Design scope:** system architecture only — no implementation in this ticket.
 
 ### How to read this folder
@@ -19,8 +19,8 @@ diagrams, use cases, API, data, glossary, and all 21 tickets as collapsible item
 | `HLR-Self-Service-Registration-KYC.md` | **Requirements source:** transcribed High-Level Requirements incl. FR-01…FR-33 — citation target for every `HLR §n` reference | All readers (read first alongside the TDD) |
 | `01-TDD-main.md` | **Design rationale companion:** objectives, scope, FR traceability, current-state gap analysis with file-level evidence, target architecture, lifecycle + BPO note, dependencies/assumptions/risks, open questions | Lead/TL, reviewers, all implementers |
 | `02-architecture-diagrams.md` | As-Is vs To-Be visual comparison + diff table, C4 context/container, self-registration sequence, login+KYC decision, KYC onboarding + PhilSys + biometrics, review/redo, tenant resolution — all in Mermaid | Architects, frontend + backend devs |
-| `03-api-design.md` | New + changed REST interfaces for auth-service and KYC-API, header/tenant contract, error model, OIDC claim changes | Backend devs, QA |
-| `04-data-model.md` | Cassandra (auth_system) + KYC-API (MariaDB/Cassandra) schema deltas, immutable lifecycle history, attempt versioning, indexes, retention | Backend devs, DBA |
+| `03-api-design.md` | New + changed REST interfaces for auth-service and the KYC back office, header/tenant contract, error model, OIDC claim changes | Backend devs, QA |
+| `04-data-model.md` | Cassandra (`auth_system` + KYC `customer_kyc`) schema deltas, immutable lifecycle history, attempt versioning, indexes, retention | Backend devs, DBA |
 | `05-user-stories-tickets.md` | Jira-ready epic/feature/story breakdown with priority, story points, components, requirements, acceptance criteria, FR mapping, sprint buckets | PM, TL, QA |
 | `06-security-errorhandling.md` | Threat model, OTP/password/CAPTCHA/rate-limit design, anti-enumeration, PII/biometric handling, error catalogue, audit requirements | Security reviewer, backend + QA |
 | `07-glossary.md` | Definitions: slug, realm, tenant, pending registration, OTP, attempt, review case, KYC status, lifecycle history, applicant IDs, callback, BPO | All readers, new joiners |
@@ -35,7 +35,7 @@ Today registration is **assisted-only**:
 - `generic-kyc-owa` boots with Keycloak `login-required` against a **single hard-coded realm** (`keycloakConfiguration.json`), has **no tenant / X-App-ID / X-Tenant-ID concept**, and is redeployed per tenant. Anonymous users cannot reach it.
 - `svi-authenticationportal-react-kyc` has **no `/register` route** — only `/login/*` + `/main/*`. Tenant is resolved post-hoc via `POST /tenant {username}`.
 - OTP (`totp` table + `GenerateOTPRequestDTO/VerifyOTPRequestDTO`) exists **only for forgot-password** (`PASSWORD_RESET` session), SMS is stubbed, and `users` has only `is_active/is_deleted/is_blocked` flags — **no KYC lifecycle state, no lifecycle history, no attempt versioning**.
-- KYC back office (`kyc-api`) has `Applicant{applicant_id, tenant_id, application_status, current_workflow_status, kyc_verification_result}` and `GET /status`, but **no dedicated approve / redo / reject API** — status is patched ad hoc.
+- KYC back office (`svi-kyc-api-springboot-kyc`) has face verify/identify/enroll, PhilSys QR passthrough, and a person registry — but **no review-case resource, no approve/redo/reject, no attempt tracking, and no document-inspection/OCR provider**.
 
 Target (this design):
 
@@ -54,7 +54,7 @@ Key architectural choices (details in `01-TDD-main.md`):
 3. **Pending-registration + registration-OTP pattern** modelled on existing `totp` (HMAC-SHA256, single-use, TTL) — account row + Keycloak user created **only after OTP verify**.
 4. **Immutable `user_lifecycle_history`** table as system-of-record; `users` keeps a materialised `kyc_status` for fast gating; KYC attempts versioned (`attempt_no`, `SUPERSEDED`, never overwritten).
 5. **KYC status as authorization attribute/claim**, not as roles — enforced in `RoleService.getApps`, `UserService.getAccessRights`, `PermissionsFilter`, and OIDC `id_token` (`kyc_verified` claim). Prevents UI-bypass.
-6. **Review queue is a thin orchestration over existing KYC-API Applicant store** — new `review_case` resource + `approve/redo/reject` transitions that write both KYC attempt status and auth lifecycle history.
+6. **Review queue is a thin orchestration over the existing applicant store** — new `review_case` resource + `approve/redo/reject` transitions that write both KYC attempt status and auth lifecycle history.
 
 ### Definition-of-Done traceability
 

@@ -27,6 +27,7 @@ open questions map to `01 §12`; risks map to `01 §11` and TDD §14.
 | Q6 | OWA build strategy | Single runtime-config build, tenant from URL slug | Frontend leads | C-01 | Phase 2 |
 | Q7 | BPO mirror depth on day one | Mirror review-case events only, never per-registration activity | Product / BPO | D-01 (non-blocking) | Phase 3 |
 | Q8 | PhilSys error-code taxonomy | Every mismatch routes to a review case; no automatic decisions on external data | KYC owner | C-02b | Phase 2 |
+| Q9 | Document inspection + OCR provider (no Innovatrics/DOT in stack) | Select provider (or reuse OWA-side capability) and freeze its contract before self capture ships | Product / KYC owner | C-02a | Phase 2 |
 
 ## 3. How we implement (workstream order)
 

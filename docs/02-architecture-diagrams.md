@@ -19,7 +19,7 @@ flowchart TB
         A2 --> A3[Frontliner logs into OWA<br/>Keycloak login-required<br/>one baked-in realm per build]
         A3 --> A4[Frontliner creates the user<br/>POST /user/register<br/>admin auth required]
         A4 --> A5[Frontliner drives OWA<br/>on a shared device<br/>ID plus selfie plus form]
-        A5 --> A6[KYC-API verifies<br/>DOT plus PhilSys plus 1:N match]
+        A5 --> A6[KYC back office verifies<br/>document plus PhilSys QR plus 1:N match]
         A6 --> A7{Exception<br/>or duplicate?}
         A7 -->|No| A8[User logs into portal<br/>username-first tenant pick<br/>live KYC lookup per request]
         A7 -->|Yes| A9[Ad-hoc fix:<br/>manual status patch<br/>or delete plus re-enroll]
@@ -74,7 +74,7 @@ flowchart LR
 | Contact proof | None for new users (trusts frontliner) | OTP single-use + TTL before creation | A-02, A-03 |
 | OWA access | Frontliner Keycloak login, shared device | End-user Bearer, own device, runtime tenant | C-01 |
 | Applicant binding | None (counsellor-attributed) | `applicant.self_user_id` bound, idempotent resume | C-01, C-03 |
-| Verification pipeline | DOT + PhilSys + 1:N, assisted capture | Identical pipeline, self capture | C-02 (reuse) |
+| Verification pipeline | Doc inspect + PhilSys QR + 1:N, assisted capture | Identical stages, self capture, Spring Boot paths | C-02a, C-02b, C-02c |
 | Exception handling | Ad-hoc status patch or delete + re-enroll | `review_case` + back-office adjudication (PENDING on hits) + approve/redo/reject, attempts immutable | D-01, D-02, D-02b, D-03 |
 | Redo | Manual rework by staff | Notify user, same module, new attempt | D-04 |
 | KYC gating | Portal hides tiles; live KYC lookup per request | Attribute + `kyc_verified` claim, materialised status, triple enforcement | B-01, B-02 |
@@ -89,7 +89,7 @@ flowchart LR
     U[Public User<br/>unassisted device] -->|HTTPS| PORTAL[Self-Service Portal<br/>auth-portal extended<br/>/self-service/:slug/register]
     U -->|HTTPS| OWA[Onboarding Web App<br/>generic-kyc-owa self mode<br/>/self/:slug]
     PORTAL -->|public APIs<br/>resolve/initiate/verify| AUTH[auth-service SB<br/>RBAC + OTP + lifecycle<br/>Cassandra + Keycloak]
-    OWA -->|bootstrap/submit/evidence| KYCAPI[KYC Back Office API<br/>kyc-api<br/>Applicant + DOT + PhilSys + MegaMatcher]
+    OWA -->|bootstrap/submit/evidence| KYCAPI[KYC Back Office API<br/>Spring Boot<br/>Person registry + PhilSys QR + MegaMatcher ABIS]
     OWA -->|status + review events| AUTH
     KYCAPI -->|review cases| REVIEW[Reviewer UI<br/>KYC_REGISTRATION_REVIEW]
     REVIEW -->|approve / redo / reject| KYCAPI
@@ -238,22 +238,22 @@ sequenceDiagram
     participant O as OWA (self mode)
     participant A as auth-service
     participant K as KYC-API
-    participant DOT as DOT Innovatrics
+    participant DOT as Document inspection, provider TBD
     participant PS as PhilSys eVerify
     participant MM as MegaMatcher ABIS
     U->>O: Open onboarding_url (Bearer + slug)
     O->>A: GET /user/access-rights (prove KYC_SELF_ONBOARD)
     O->>K: POST /kyc/self/bootstrap {slug} (X-Tenant-ID) → {applicant_id, attempt_no} (resume IN_PROGRESS)
     O->>U: ID select → capture front/back
-    O->>DOT: POST /dot/upload + /customers/inspect-id
-    DOT-->>O: tamper/MRZ/expiry + portrait crop
+    O->>DOT: inspect ID front and back, TBD provider
+    DOT-->>O: tamper, expiry, and portrait results
     O->>U: OCR confirm (keep ocr vs user vs verified provenance)
     alt ID is PNID
         O->>PS: POST /psa/query/qr {pnid, face}
         PS-->>O: match/mismatch event (stored, not overwriting)
     end
-    O->>DOT: POST /customers/inspect-selfie (quality + liveness + doc-portrait similarity)
-    O->>MM: POST /biometric + /verify/face (1:N identify)
+    O->>DOT: inspect selfie quality, forward liveness session
+    O->>MM: POST /customers/identify/face for 1:N identify
     alt 1:N hit (similar face or info)
         MM-->>K: {duplicate_id, hit_score} → PENDING adjudication (never auto-merge)
         K->>K: attempt UNDER_REVIEW, user sees generic under-review only
@@ -375,10 +375,8 @@ flowchart TB
         KYC[KYC-API ×N]
     end
     subgraph DATA[Data tier]
-        CAS[(Cassandra<br/>auth_system + customer_kyc)]
-        MAR[(MariaDB<br/>applicant domain)]
-        GFS[(GFS/HFiles<br/>evidence blobs)]
-        SOLR[(Solr<br/>search index)]
+        CAS[(Cassandra<br/>auth_system + customer_kyc + svi_person_db)]
+        GFS[(HFiles<br/>evidence blobs)]
     end
     subgraph IDP[Identity]
         KC[Keycloak<br/>per-realm]
@@ -388,8 +386,6 @@ flowchart TB
     PORTAL --> KYC
     AUTH --> CAS
     AUTH --> KC
-    KYC --> MAR
     KYC --> CAS
     KYC --> GFS
-    KYC --> SOLR
 ```

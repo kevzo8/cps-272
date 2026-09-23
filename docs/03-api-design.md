@@ -139,9 +139,9 @@ Reuse `api.ts`, `auth-fetch.ts` headers, modal/error patterns. Unknown/disabled 
 
 ---
 
-## 5. KYC-API — NEW + CHANGED resources
+## 5. KYC back office (`svi-kyc-api-springboot-kyc`) — NEW + CHANGED resources
 
-> New first-class resources over the existing `Applicant` store. `tenant_id` from JWT/server header on every call (existing `JWTUtils.getTenantIdFromHeader` pattern).
+> New first-class resources over the existing Cassandra stores (`customer_kyc.applicant`, `facedb_result`, `person*`). Base path `/spring/gen-kyc-api`. `tenant_id` from `X-Tenant-ID` header (fallback JWT `tenant_id` claim — existing `JWTUtils.getTenantIdFromHeader` pattern); existing auth chain (`Authorized → Authenticated → AppID → Permissions → AuditLogger`) applies to new endpoints. Reuse as-is: `POST /customers/verify/face` (1:1), `POST /customers/identify/face` (1:N or by person_id), `POST /customers/enroll/face` (`SUCCESS`/`DUPLICATE_FOUND`/`ADJUDICATION_WAITING`), `PATCH /customers/update/face`, `GET /customers/biometrics/face` (evidence image), `POST /customers/save/transaction` (person registry), `GET /person`, `POST /psa/query/qr` (PhilSys eVerify passthrough).
 
 ### 5.1 `POST /kyc/self/bootstrap` (authenticated end-user Bearer)
 Creates-or-resumes the caller's applicant + open attempt. Binds `applicant.self_user_id = auth users.user_id` (new column, `04 §4`).
@@ -154,7 +154,7 @@ Creates-or-resumes the caller's applicant + open attempt. Binds `applicant.self_
 Duplicate bootstrap with open attempt returns the same attempt (idempotent). One open attempt per applicant enforced.
 
 ### 5.2 `POST /kyc/self/attempts/{n}/submit` (authenticated)
-Runs the existing pipeline (DOT/PhilSys/MegaMatcher/rules) then transitions attempt + applicant and **pushes a status callback** to auth-service (§5.4). Response: `{applicant_id, attempt_no, decision: APPROVED|UNDER_REVIEW, review_case_id?}`.
+Runs the pipeline (document inspection via TBD provider, PhilSys QR, MegaMatcher face via `/customers/identify|enroll/face`, rules) then transitions attempt + applicant and **pushes a status callback** to auth-service (§5.4). Response: `{applicant_id, attempt_no, decision: APPROVED|UNDER_REVIEW, review_case_id?}`.
 
 ### 5.3 Review cases (reviewer Bearer + `KYC_REGISTRATION_REVIEW`)
 - `GET /review-cases?tenant_id=&status=PENDING&issue=&priority=&page=` → paged queue (minimal PII).
@@ -162,12 +162,12 @@ Runs the existing pipeline (DOT/PhilSys/MegaMatcher/rules) then transitions atte
 - `POST /review-cases/{id}/approve {notes}` → attempt `APPROVED`, applicant `VERIFIED`.
 - `POST /review-cases/{id}/request-redo {reason_code, instructions}` → attempt `REDO_REQUESTED`, applicant `REDO_REQUIRED`. `reason_code` from tenant-config codelist (`UNCLEAR_ID, OCR_INCONCLUSIVE, POOR_SELFIE, LIVENESS_ISSUE, DUP_BIOMETRIC, CONFLICT_ATTRS, OTHER`); `instructions` are user-facing, non-technical.
 - `POST /review-cases/{id}/reject {reason_code, notes}` → attempt `REJECTED`, applicant `REJECTED` + identifier cool-down.
-- `GET /review-cases/{id}/adjudication` (adjudicator Bearer + `KYC_BIOMETRIC_ADJUDICATION`, back-office only) → candidate list for a `DUP_BIOMETRIC` case: probe vs candidate refs, hit scores, controlled identity fields; side-by-side images gated + watermarked + audited. Reuses existing KYC-API `GET /biometric/adjudication` candidate sourcing.
-- `POST /review-cases/{id}/adjudicate {verdict: SAME_PERSON|DIFFERENT_PERSON|INCONCLUSIVE, confidence, notes}` → records verdict + audit: `DIFFERENT_PERSON` clears the hit (attempt resumes automated path); `SAME_PERSON` converts to duplicate handling (→ reject/fraud path + cool-down); `INCONCLUSIVE` → redo with fresh capture. The handler must also call the existing engine endpoint `GET /biometric/adjudication?request_id=&approve=` (`GenOwaService.java:446` → `MMABISAccessor.adjudicateDifferent/adjudicateDuplicate`): `DIFFERENT_PERSON` sends `approve=true`, `SAME_PERSON` sends `approve=false`. Server rule: a `DUP_BIOMETRIC` case cannot transition to approve without a prior `DIFFERENT_PERSON` verdict.
+- `GET /review-cases/{id}/adjudication` (adjudicator Bearer + `KYC_BIOMETRIC_ADJUDICATION`, back-office only) → candidate list for a `DUP_BIOMETRIC` case: probe vs candidate refs, hit scores, controlled identity fields; side-by-side images via existing `GET /customers/biometrics/face`, gated + watermarked + audited.
+- `POST /review-cases/{id}/adjudicate {verdict: SAME_PERSON|DIFFERENT_PERSON|INCONCLUSIVE, confidence, notes}` → records verdict + audit: `DIFFERENT_PERSON` clears the hit (attempt resumes automated path); `SAME_PERSON` converts to duplicate handling (→ reject/fraud path + cool-down); `INCONCLUSIVE` → redo with fresh capture. The handler must also drive the existing `PATCH /customers/adjudication` (`request_id` + per-hit `hit_subject_id → UNIQUE|DUPLICATE`): `DIFFERENT_PERSON` sends `UNIQUE`, `SAME_PERSON` sends `DUPLICATE`. Server rule: a `DUP_BIOMETRIC` case cannot transition to approve without a prior `DIFFERENT_PERSON` verdict.
 - All four **emit the auth callback** (§5.4) and write KYC-side audit.
 
 ### 5.4 `POST /internal/kyc-status-callback` (auth-service, mTLS/service token)
-KYC-API → auth-service authoritative transition (never trust client-reported status):
+KYC back office → auth-service authoritative transition (never trust client-reported status). No callback infrastructure exists today (the back office only pulls tenant/secrets/settings from auth-service), so sender retries, receiver idempotency, and service credentials are all new in this ticket:
 ```json
 {
   "tenant_id": "uuid", "applicant_id": "…", "self_user_id": "uuid",
@@ -177,8 +177,8 @@ KYC-API → auth-service authoritative transition (never trust client-reported s
 ```
 Auth-service validates service credential + `tenant/applicant/user` binding, appends lifecycle history, updates materialised `users.kyc_status`, notifies user. Retried with idempotency key; stale events (older `attempt_no`) are recorded but do not regress current state.
 
-### 5.5 Changed: `GET /status`, `GET /status/all`
-Add `attempt_no, attempt_status, review_case_id, decided_at, reason_code` to existing payloads (additive). `POST /status` generic patch is **deprecated for review outcomes** (use §5.3 transitions); retained for legacy callers with audit warning.
+### 5.5 NEW: applicant/attempt status reads
+The Spring Boot service has no applicant-status endpoint today (no `GET /status` equivalent). Add `GET /kyc/self/status?applicant_id=` returning `{applicant_id, kyc_status, attempt_no, attempt_status, review_case_id, decided_at, reason_code}` sourced from the `review_case`/`kyc_attempt` tables (§5.3, `04 §4`) — additive, owned by the same tickets as the case API.
 
 ---
 
