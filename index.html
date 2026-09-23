@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CPS-272 — Self-Service Registration with KYC: Dev Briefing</title>
+<style>
+  :root {
+    --acc: #4f46e5; --acc2: #7c3aed; --ok: #1d9e6b; --bad: #d64545;
+    --r: 16px;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif;
+  }
+  [data-theme="light"] {
+    --bg: #eef1f7; --card: #ffffff; --card2: #f3f5fa; --line: #dde3ef;
+    --txt: #1c2333; --muted: #68718c; --out: #f2f4fa; --shadow: 0 10px 30px #2b35521a;
+  }
+  [data-theme="dark"] {
+    --bg: #2b3044; --card: #363d55; --card2: #414a68; --line: #4f5878;
+    --txt: #f0f2fa; --muted: #b9c0d8; --out: #262c42; --shadow: 0 10px 30px #00000055;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body { margin: 0; font-family: var(--font); background: var(--bg); color: var(--txt);
+    -webkit-font-smoothing: antialiased; letter-spacing: -0.011em; }
+  h1, h2, h3 { letter-spacing: -0.02em; }
+  code { background: var(--out); border: 1px solid var(--line); padding: 2px 8px; border-radius: 8px; font-size: 12px; word-break: break-all; }
+  .btn { border: 1px solid var(--line); background: var(--card2); color: var(--txt); padding: 11px 14px; border-radius: 12px; cursor: pointer; font-weight: 700; font-family: var(--font); font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+  .btn.primary { background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; border: none; }
+  .btn.ghost { background: transparent; }
+  a.btn.primary { color: #fff; }
+  .theme-toggle { display: flex; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--card); }
+  .theme-toggle button { border: none; background: transparent; color: var(--txt); padding: 8px 14px; cursor: pointer; font-weight: 600; font-family: var(--font); }
+  .theme-toggle button.active { background: var(--txt); color: var(--bg); }
+  .muted { color: var(--muted); }
+
+  body.guide { margin: 0; }
+  .g-shell { display: grid; grid-template-columns: 292px minmax(0, 1fr); min-height: 100vh; }
+  /* ---- sidebar agenda ---- */
+  .g-side { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--card); border-right: 1px solid var(--line); padding: 18px 14px; display: flex; flex-direction: column; gap: 4px; scrollbar-width: thin; }
+  .g-brand { display: flex; gap: 10px; align-items: center; padding: 2px 6px 14px; }
+  .g-badge { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .g-brand b { font-size: 15px; display: block; }
+  .g-brand span { font-size: 11px; color: var(--muted); }
+  .g-group { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 12px 8px 4px; }
+  .g-link { display: flex; gap: 9px; align-items: baseline; padding: 7px 9px; border-radius: 10px; color: var(--txt); text-decoration: none; font-size: 13.5px; border: 1px solid transparent; }
+  .g-link .n { font-size: 11px; font-weight: 800; color: var(--muted); min-width: 22px; }
+  .g-link:hover { background: var(--card2); }
+  .g-link.on { background: var(--card2); border-color: var(--acc); font-weight: 700; }
+  .g-link.on .n { color: var(--acc); }
+  .g-doc { display: flex; gap: 9px; align-items: baseline; padding: 5px 9px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 12.5px; }
+  .g-doc .n { font-size: 10px; font-weight: 800; min-width: 30px; }
+  .g-doc:hover { background: var(--card2); color: var(--txt); }
+  .g-progress { height: 4px; background: var(--card2); border-radius: 4px; margin: 12px 6px 4px; overflow: hidden; }
+  .g-progress div { height: 100%; width: 0; background: linear-gradient(90deg, var(--acc), var(--acc2)); }
+  .g-pagenav { position: fixed; bottom: 16px; right: 20px; display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 8px 10px; box-shadow: var(--shadow); z-index: 50; }
+  .g-pagenav #gcount { font-size: 12px; font-weight: 800; color: var(--muted); min-width: 52px; text-align: center; }
+  .g-pagenav .btn { padding: 9px 18px; }
+  .g-side .fine { margin: 12px 6px 0; font-size: 11px; color: var(--muted); }
+  .side-foot { display: grid; gap: 8px; margin-top: auto; padding: 12px 8px 0; font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .side-foot p { margin: 0; }
+  /* ---- main ---- */
+  .g-main { min-width: 0; padding: 0 0 80px; }
+  .g-top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px; padding: 12px 34px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .g-top .crumb { font-size: 13px; color: var(--muted); }
+  .g-top .spacer { flex: 1; }
+  .g-sec { padding: 44px 40px 8px; max-width: 1060px; }
+  .g-sec .kicker { font-size: 12px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--acc2); }
+  .g-sec h2 { font-size: clamp(26px, 3.4vw, 40px); margin: 6px 0 10px; }
+  .g-sec h3 { font-size: 18px; margin: 26px 0 6px; }
+  .g-sec p.lead { font-size: 17px; line-height: 1.6; color: var(--muted); max-width: 70ch; }
+  .g-sec p, .g-sec li { font-size: 14.5px; line-height: 1.6; }
+  .g-sec ul, .g-sec ol { display: grid; gap: 7px; padding-left: 20px; }
+  /* cover */
+  .cover { min-height: calc(100vh - 57px); display: flex; flex-direction: column; justify-content: center; padding: 40px; max-width: 1060px; }
+  .cover h1 { font-size: clamp(40px, 6vw, 76px); line-height: 1.02; margin: 10px 0 14px; }
+  .cover h1 .grad { background: linear-gradient(100deg, var(--acc), var(--acc2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .cover .sub { font-size: clamp(16px, 2vw, 21px); color: var(--muted); max-width: 62ch; line-height: 1.55; }
+  .statrow { display: flex; gap: 10px; flex-wrap: wrap; margin: 22px 0; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 18px; box-shadow: var(--shadow); }
+  .stat b { font-size: 26px; display: block; letter-spacing: -.02em; }
+  .stat span { font-size: 12px; color: var(--muted); }
+  .cta-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  /* endpoint blocks */
+  .ep { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 18px 0 6px; }
+  .method { font-weight: 800; font-size: 13px; padding: 5px 12px; border-radius: 8px; background: #dff5e9; color: #0c5c3c; border: 1px solid #9adcb9; }
+  .method.get { background: #e4ecff; color: #1e3fae; border-color: #b9c8f5; }
+  .method.chg { background: #fff3d6; color: #7a4d00; border-color: #ecd194; }
+  .ep code.big { font-size: 15px; }
+  .ep .tk { font-size: 11px; font-weight: 800; color: var(--muted); }
+  table.spec { width: 100%; border-collapse: separate; border-spacing: 0 6px; font-size: 13.5px; margin: 14px 0 10px; }
+  table.spec th, table.spec td { text-align: left; padding: 12px 14px; vertical-align: top; }
+  table.spec th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding-bottom: 6px; }
+  table.spec td { background: var(--card); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); line-height: 1.7; }
+  table.spec td:first-child { border-left: 1px solid var(--line); border-radius: 10px 0 0 10px; }
+  table.spec td:last-child { border-right: 1px solid var(--line); border-radius: 0 10px 10px 0; }
+  table.spec td.mono { font-family: ui-monospace, Consolas, monospace; white-space: nowrap; font-size: 12.5px; }
+  pre.code { background: #10142a; color: #e8ecff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; font-size: 12.5px; line-height: 1.55; overflow-x: auto; }
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 900px) { .cols2 { grid-template-columns: 1fr; } }
+  .note { background: var(--card2); border: 1px solid var(--line); border-left: 4px solid var(--acc); border-radius: 0 12px 12px 0; padding: 10px 14px; font-size: 13px; margin: 12px 0; }
+  .flow { display: flex; margin: 14px 0; flex-wrap: wrap; }
+  .flow div { flex: 1 1 120px; background: var(--card2); border: 1px solid var(--line); padding: 10px; font-size: 12px; text-align: center; }
+  .flow div:first-child { border-radius: 12px 0 0 12px; }
+  .flow div:last-child { border-radius: 0 12px 12px 0; }
+  .flow b { display: block; font-size: 13px; }
+  .mermaid { background: #ffffff; color: #1c2333; border: 1px solid var(--line); border-radius: 14px; padding: 16px; overflow-x: auto; margin: 12px 0; }
+  /* tickets */
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: .02em; color: #fff; border-radius: 20px; padding: 2px 10px; margin: 2px 3px 2px 0; white-space: nowrap; }
+  .badge.crit { background: #c0392b; } .badge.maj { background: #b96a00; }
+  .badge.min { background: #2c6fbb; } .badge.pts { background: #6c757d; } .badge.comp { background: #45556e; }
+  details.tkt { background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin: 8px 0; }
+  details.tkt summary { cursor: pointer; list-style: none; padding: 12px 14px; font-weight: 700; font-size: 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  details.tkt summary::-webkit-details-marker { display: none; }
+  details.tkt summary::before { content: "▸"; color: var(--acc); font-size: 14px; }
+  details.tkt[open] summary::before { content: "▾"; }
+  details.tkt summary:hover { background: var(--card2); border-radius: 12px; }
+  details.tkt .tbody { padding: 2px 16px 14px 30px; border-top: 1px dashed var(--line); font-size: 13.5px; }
+  details.tkt .tbody p { margin: 8px 0; }
+  details.tkt .tbody ul { margin: 6px 0; }
+  a.ref { color: var(--acc2); text-decoration: underline dotted; text-underline-offset: 2px; }
+  a.ref:hover { color: var(--acc); }
+  span.ref-hlr { border-bottom: 1px dotted var(--acc2); cursor: help; }
+  #frindex tr:target td, #usecases tr:target td { outline: 2px solid var(--acc); }
+  ul.ac { list-style: none; padding-left: 4px; display: grid; gap: 5px; margin: 6px 0 10px; }
+  ul.ac li::before { content: "☐ "; color: var(--acc); font-weight: 800; }
+  body.hide-pts .badge.pts, body.hide-pts .pts-stat, body.hide-pts .pts-val { display: none; }
+  /* local planning board */
+  .apanel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 10px 0; display: grid; gap: 10px; }
+  .apanel .arow { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+  .apanel label, .assign label { font-size: 11px; font-weight: 700; color: var(--muted); display: grid; gap: 4px; }
+  .apanel input, .apanel select, .apanel textarea, .assign input, .assign textarea { background: var(--card2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; color: var(--txt); font-family: var(--font); font-size: 13px; }
+  .apanel .btn, .assign .btn { padding: 7px 12px; font-size: 12px; }
+  .apanel .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip-m { background: var(--card2); border: 1px solid var(--line); border-radius: 16px; padding: 3px 6px 3px 10px; font-size: 12px; display: inline-flex; gap: 6px; align-items: center; }
+  .chip-m button { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 12px; }
+  .assign { margin-top: 10px; background: var(--card2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }
+  .assign-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+  .assign input.a-pts { width: 84px; }
+  .assign textarea { width: 100%; resize: vertical; }
+  .a-saved { font-size: 11px; }
+  .tmeta { font-size: 11px; color: var(--muted); font-weight: 600; }
+  .chip-m { cursor: pointer; }
+  .chip-m.active { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc); background: var(--card); }
+  .chip-pts { font-weight: 800; color: var(--acc2); }
+  .filter-note { font-size: 11px; color: var(--acc2); font-weight: 700; }
+  #frindex tr[id], #usecases tr[id], section[id] { scroll-margin-top: 76px; }
+  @media (max-width: 900px) { .apanel .grid2 { grid-template-columns: 1fr; } }
+  /* in-deck document viewer */
+  .docview { position: fixed; top: 0; right: 0; bottom: 0; left: 292px; z-index: 100; background: var(--bg); border-left: 1px solid var(--line); display: flex; flex-direction: column; }
+  .docview[hidden] { display: none; }
+  .docview-bar { display: flex; align-items: center; gap: 10px; padding: 12px 20px; background: var(--card); border-bottom: 1px solid var(--line); }
+  .docview-bar .crumb { font-size: 14px; font-weight: 700; }
+  .docview-bar .spacer { flex: 1; }
+  .docview-bar .btn { padding: 8px 14px; font-size: 13px; }
+  .docview-body { overflow-y: auto; padding: 28px 40px 80px; max-width: 1000px; width: 100%; margin: 0 auto; font-size: 14.5px; line-height: 1.6; }
+  .docview-body h1 { font-size: 30px; } .docview-body h2 { font-size: 24px; margin-top: 28px; }
+  .docview-body h3 { font-size: 18px; } .docview-body h4 { font-size: 15px; }
+  .docview-body pre { background: #10142a; color: #e8ecff; border-radius: 14px; padding: 16px 18px; overflow-x: auto; font-size: 12.5px; }
+  .docview-body pre code { background: none; border: none; padding: 0; color: inherit; }
+  .docview-body ul { display: grid; gap: 5px; padding-left: 22px; }
+  .docview-body blockquote { border-left: 4px solid var(--acc); margin: 12px 0; padding: 6px 14px; background: var(--card2); border-radius: 0 10px 10px 0; }
+  .g-doc.on { background: var(--card2); color: var(--txt); font-weight: 700; }
+  @media (max-width: 900px) { .docview { left: 0; } }
+  .feat-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 26px 0 4px; }
+  .feat-head h3 { margin: 0 !important; }
+  .feat-head .count { font-size: 12px; font-weight: 800; color: var(--muted); }
+  @media (max-width: 900px) {
+    .g-shell { grid-template-columns: 1fr; }
+    .g-side { position: static; height: auto; flex-direction: row; align-items: center; overflow-x: auto; padding: 10px; }
+    .g-brand, .g-group, .g-side .fine, .g-progress, .side-foot { display: none; }
+    .g-link { white-space: nowrap; }
+    .g-sec, .cover { padding-left: 20px; padding-right: 20px; }
+  }
+</style>
+</head>
+<body class="guide hide-pts">
+<div class="g-shell">
+  <nav class="g-side" id="agenda">
+    <div class="g-brand">
+      <div class="g-badge">272</div>
+      <div><b>CPS-272 Self-Service KYC</b><span>TDD briefing · dev walkthrough</span></div>
+    </div>
+    <div class="g-progress"><div id="gprog"></div></div>
+    <div class="g-group">Opening</div>
+    <a class="g-link" href="#cover"><span class="n">00</span>Overview</a>
+    <a class="g-link" href="#problem"><span class="n">01</span>Problem · assisted-only today</a>
+    <a class="g-link" href="#solution"><span class="n">02</span>Solution · two steps</a>
+    <div class="g-group">Design</div>
+    <a class="g-link" href="#asis"><span class="n">03</span>As-Is vs To-Be</a>
+    <a class="g-link" href="#arch"><span class="n">04</span>Architecture</a>
+    <a class="g-link" href="#flows"><span class="n">05</span>Key flows</a>
+    <div class="g-group">Reference</div>
+    <a class="g-link" href="#usecases"><span class="n">06</span>Use cases</a>
+    <a class="g-link" href="#api"><span class="n">07</span>API design</a>
+    <a class="g-link" href="#data"><span class="n">08</span>Data model</a>
+    <a class="g-link" href="#glossary"><span class="n">09</span>Glossary</a>
+    <a class="g-link" href="#frindex"><span class="n">10</span>FR index · all 33</a>
+    <div class="g-group">Delivery</div>
+    <a class="g-link" href="#tickets"><span class="n">11</span>Tickets · 21 stories</a>
+    <a class="g-link" href="#rollout"><span class="n">12</span>Rollout + next steps</a>
+    <div class="g-group">Full design · docs/cps-272/</div>
+    <a class="g-doc" href="docs/cps-272/HLR-Self-Service-Registration-KYC.md" title="High-Level Requirements source (FR-01…FR-33)"><span class="n">HLR</span>Requirements source</a>
+    <a class="g-doc" href="docs/cps-272/TDD-CPS-272-Self-Service-Registration-KYC.md" title="Canonical template-compliant TDD"><span class="n">TDD</span>Canonical design</a>
+    <a class="g-doc" href="docs/cps-272/00-README-index.md" title="Index + one-page summary"><span class="n">00</span>Index</a>
+    <a class="g-doc" href="docs/cps-272/01-TDD-main.md" title="Design rationale, gaps, risks"><span class="n">01</span>Rationale</a>
+    <a class="g-doc" href="docs/cps-272/02-architecture-diagrams.md" title="Full Mermaid set"><span class="n">02</span>Diagrams</a>
+    <a class="g-doc" href="docs/cps-272/03-api-design.md" title="Endpoint contracts"><span class="n">03</span>API design</a>
+    <a class="g-doc" href="docs/cps-272/04-data-model.md" title="Schemas + migration"><span class="n">04</span>Data model</a>
+    <a class="g-doc" href="docs/cps-272/05-user-stories-tickets.md" title="Jira-ready tickets"><span class="n">05</span>Tickets</a>
+    <a class="g-doc" href="docs/cps-272/06-security-errorhandling.md" title="Threat model + error catalogue"><span class="n">06</span>Security</a>
+    <a class="g-doc" href="docs/cps-272/07-glossary.md" title="Term definitions"><span class="n">07</span>Glossary</a>
+    <a class="g-doc" href="docs/cps-272/08-use-cases.md" title="End-to-end scenarios"><span class="n">08</span>Use cases</a>
+    <div class="side-foot">
+      <p>21 tickets · ≈114 points · 10 use cases · additive-only, no breaking changes.</p>
+      <p>Docs open rendered inside this deck (Live Server for local files).</p>
+    </div>
+  </nav>
+
+  <div class="g-main">
+    <div class="g-top">
+      <span class="crumb" id="crumb">00 · Overview</span>
+      <div class="spacer"></div>
+      <a class="btn primary" href="#tickets">Skip to tickets ↓</a>
+      <div class="theme-toggle"><button id="themeLight" class="active">Light</button><button id="themeDark">Dark</button></div>
+    </div>
+
+    <!-- 00 COVER -->
+    <section class="cover" id="cover">
+      <div class="kicker" style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--acc2)">CPS-272 · Technical Design Briefing</div>
+      <h1>Self-service onboarding, <span class="grad">same trusted verification.</span></h1>
+      <p class="sub">Anyone can create their own account with a verified email or mobile number — then prove their identity in the same KYC module frontliners use today. Exceptions go to humans: approve, redo, or reject.</p>
+      <div class="statrow">
+        <div class="stat"><b>21</b><span>tickets, ready for Jira</span></div>
+        <div class="stat pts-stat"><b>≈114</b><span>story points, 8 sprints</span></div>
+        <div class="stat"><b>10</b><span>use cases double as UAT</span></div>
+        <div class="stat"><b>0</b><span>breaking changes</span></div>
+      </div>
+      <p class="sub"><b>Portal</b> owns accounts and login. <b>OWA</b> owns capture. <b>KYC back office</b> owns checks plus human review. They meet at exactly one new concept per side: the <b>slug</b> (which tenant), the <b>pending record</b> (no account before code success), and the <b>review case</b> (every exception gets a verdict).</p>
+      <div class="flow">
+        <div><b>1. Code</b>prove the contact</div>
+        <div><b>2. Account</b>auto-created</div>
+        <div><b>3. Verify</b>same module</div>
+        <div><b>4. Review</b>humans decide</div>
+        <div><b>5. Access</b>KYC-gated apps</div>
+      </div>
+      <div class="note"><b>Plain-English rule:</b> contact proof is not identity proof. A verified code answers <i>"do you control this number?"</i> — only KYC answers <i>"are you really this person?"</i> Never conflate the two.</div>
+      <div class="cta-row">
+        <a class="btn primary" href="#problem">Start the briefing ↓</a>
+        <a class="btn ghost" href="#tickets">Skip to tickets</a>
+      </div>
+    </section>
+
+    <!-- 01 PROBLEM -->
+    <section class="g-sec" id="problem">
+      <div class="kicker">01 · Problem</div>
+      <h2>Assisted-only cannot scale</h2>
+      <p class="lead">Every account today needs a frontliner with a provisioned staff login. That caps onboarding at frontliner headcount.</p>
+      <ul>
+        <li><b>No public registration</b> — <code>POST /user/register</code> demands an already-logged-in admin.</li>
+        <li><b>Onboarding app is staff-only</b> — Keycloak login-required on one baked-in realm; anonymous users bounce; one build per tenant.</li>
+        <li><b>Portal has no register pages</b> and finds tenants by username — impossible for someone with no account yet.</li>
+        <li><b>Codes are password-reset-only</b>; SMS sending is a logged stub; users carry no KYC state, no history, no attempt tracking.</li>
+        <li><b>Review is ad hoc</b> — exceptions get manual status patches or delete-and-re-enroll. No approve / redo / reject workflow.</li>
+      </ul>
+      <div class="note">What we keep: verification algorithms, RBAC, one-realm-per-tenant, the assisted flow itself. The design only <b>adds</b> the self-service path.</div>
+    </section>
+
+    <!-- 02 SOLUTION -->
+    <section class="g-sec" id="solution">
+      <div class="kicker">02 · Solution</div>
+      <h2>Two steps, same modules</h2>
+      <p class="lead"><b>Step 1</b> proves contact control by code before any account exists. <b>Step 2</b> proves personhood in the same OWA pipeline. KYC status becomes an authorization attribute, backed by immutable history and versioned attempts.</p>
+      <ul>
+        <li><b>Slug-first tenancy</b> — <code>/self-service/{slug}/register</code> names the organisation before any username exists.</li>
+        <li><b>Same OWA, new self mode</b> — end-user token, runtime tenant, applicant bound to my login; assisted mode untouched.</li>
+        <li><b>Review queue with teeth</b> — every exception becomes a case; biometric hits wait for a back-office adjudication verdict.</li>
+        <li><b>Fail-safe defaults</b> — gated apps deny on outage; unknown tenants and taken identifiers get identical replies.</li>
+      </ul>
+    </section>
+
+    <!-- 03 ASIS -->
+    <section class="g-sec" id="asis">
+      <div class="kicker">03 · As-Is vs To-Be</div>
+      <h2>Side by side</h2>
+      <p class="lead">Same grammar in both charts: rounded boxes are entries, diamonds are decisions, loops are rework.</p>
+      <h3>As-Is — assisted only</h3>
+      <div class="mermaid">flowchart TB
+    A1([Person needs account]) --> A2[Frontliner account<br/>provisioned out-of-band]
+    A2 --> A3[Frontliner logs into OWA<br/>login required, one baked-in realm]
+    A3 --> A4[Frontliner creates the user<br/>admin-only API]
+    A4 --> A5[Frontliner drives OWA<br/>on a shared device]
+    A5 --> A6[KYC back office verifies]
+    A6 --> A7{Exception?}
+    A7 -->|No| A8[User logs into portal]
+    A7 -->|Yes| A9[Ad-hoc fix:<br/>manual patch or delete + re-enroll]
+    A9 --> A5</div>
+      <h3>To-Be — self-service</h3>
+      <div class="mermaid">flowchart TB
+    B1([Person needs account]) --> B2[Opens tenant link<br/>no account needed]
+    B2 --> B3[Proves contact control<br/>code before any account exists]
+    B3 --> B4[Account auto-created<br/>login + history rows]
+    B4 --> B5[Logs in, routed by KYC status<br/>to OWA self mode]
+    B5 --> B6[Self-drives the same<br/>verification pipeline]
+    B6 --> B7{Exception?}
+    B7 -->|No| B8[Verified: full app access]
+    B7 -->|Yes| B9[Review case:<br/>approve, redo, or reject]
+    B9 -->|Redo| B10[Notified, logs in<br/>same module, new attempt]
+    B10 --> B6
+    B9 -->|Approve| B8</div>
+    </section>
+
+    <!-- 04 ARCH -->
+    <section class="g-sec" id="arch">
+      <div class="kicker">04 · Architecture</div>
+      <h2>Three owners, no shared databases</h2>
+      <p class="lead">Auth-service owns accounts, the KYC back office owns evidence, RBAC owns access. They talk only through versioned APIs plus one status callback.</p>
+      <div class="mermaid">flowchart LR
+    U[Public user device] --> PORTAL[Self-service portal<br/>register, login, status]
+    U --> OWA[Onboarding app<br/>self mode]
+    PORTAL --> AUTH[auth-service<br/>accounts + OTP + history<br/>Cassandra + Keycloak]
+    OWA --> KYCAPI[KYC back office<br/>checks + evidence]
+    KYCAPI --> REVIEW[Reviewer UI<br/>queue + decisions]
+    REVIEW --> KYCAPI
+    KYCAPI -->|status callback| AUTH
+    AUTH --> KC[Keycloak<br/>one realm per tenant]
+    AUTH --> MAIL[Email sender]
+    AUTH --> SMS[SMS provider<br/>new adapter]</div>
+    </section>
+
+    <!-- 05 FLOWS -->
+    <section class="g-sec" id="flows">
+      <div class="kicker">05 · Key flows</div>
+      <h2>Code before account, always</h2>
+      <p class="lead">Nothing — no user row, no login-system entry — is created until the code checks out.</p>
+      <div class="mermaid">sequenceDiagram
+    autonumber
+    actor U as Registrant
+    participant P as Portal
+    participant A as auth-service
+    participant K as Keycloak
+    U->>P: Open tenant link
+    P->>A: Resolve slug to tenant + realm
+    U->>P: Submit contact + password + terms + anti-bot
+    P->>A: Initiate (store pending record, send code)
+    U->>P: Enter code
+    P->>A: Verify code
+    A->>K: Create login only on success
+    A-->>P: Account created, go log in</div>
+      <h3>Verification pipeline — attempt is versioned</h3>
+      <div class="mermaid">sequenceDiagram
+    autonumber
+    actor U as Logged-in user
+    participant O as OWA self mode
+    participant K as KYC back office
+    participant E as Checks (document, national ID, liveness, face search)
+    O->>K: Bootstrap (resume or start attempt N)
+    O->>E: ID capture + inspection + face + liveness
+    E-->>K: Hit? then PENDING adjudication, else results
+    O->>K: Submit attempt N
+    K->>K: Approve, or open review case</div>
+      <h3>Review — adjudication is back-office only</h3>
+      <div class="mermaid">sequenceDiagram
+    autonumber
+    participant J as Adjudicator (back office only)
+    participant R as Reviewer
+    participant K as KYC back office
+    R->>K: Open queue, claim case
+    J->>K: Adjudicate hit (same, different, or inconclusive)
+    R->>K: Approve, redo, or reject
+    K->>K: Update attempt + notify user</div>
+      <h3>Status machine</h3>
+      <div class="mermaid">stateDiagram-v2
+    [*] --> NOT_STARTED: account created
+    NOT_STARTED --> IN_PROGRESS: start verification
+    IN_PROGRESS --> KYC_VERIFIED: all checks pass
+    IN_PROGRESS --> KYC_REVIEW: exception or hit
+    KYC_REVIEW --> KYC_VERIFIED: approved (or cleared hit)
+    KYC_REVIEW --> REDO_REQUIRED: redo requested
+    KYC_REVIEW --> KYC_REJECTED: rejected
+    REDO_REQUIRED --> IN_PROGRESS: new attempt</div>
+    </section>
+
+    <!-- 06 USE CASES -->
+    <section class="g-sec" id="usecases">
+      <div class="kicker">06 · Use cases</div>
+      <h2>Ten scenarios that double as UAT</h2>
+      <p class="lead">Full scripts with actors and alternates live in <code>08-use-cases.md</code>. QA lifts them straight into test plans.</p>
+      <p><button class="btn ghost clearRefBtn">Clear highlight</button> <span class="muted" style="font-size:12px">Removes the outline after jumping to a referenced row.</span></p>
+      <table class="spec"><tr><th>ID</th><th>Scenario</th><th>Actor</th><th>Tickets</th></tr>
+        <tr id="uc-01"><td>UC-01</td><td>Self-registration happy path</td><td>Registrant</td><td>A-01…A-04</td></tr>
+        <tr id="uc-02"><td>UC-02</td><td>Code resend and expiry recovery</td><td>Registrant</td><td>A-02, A-04</td></tr>
+        <tr id="uc-03"><td>UC-03</td><td>Login with KYC routing</td><td>Registered User</td><td>B-01, B-02</td></tr>
+        <tr id="uc-04"><td>UC-04</td><td>Self onboarding to approval</td><td>Registered User</td><td>C-01…C-03</td></tr>
+        <tr id="uc-05"><td>UC-05</td><td>Redo journey to approval</td><td>Reviewer + User</td><td>D-02, D-04</td></tr>
+        <tr id="uc-06"><td>UC-06</td><td>Duplicate hit: same person, rejected</td><td>Adjudicator</td><td>D-02b, D-02</td></tr>
+        <tr id="uc-07"><td>UC-07</td><td>Duplicate hit: different person, approved</td><td>Adjudicator</td><td>D-02b</td></tr>
+        <tr id="uc-08"><td>UC-08</td><td>Reviewer triage and decision</td><td>Reviewer</td><td>D-01…D-03</td></tr>
+        <tr id="uc-09"><td>UC-09</td><td>Suspend and investigate</td><td>Admin + Support</td><td>B-03, D-07</td></tr>
+        <tr id="uc-10"><td>UC-10</td><td>Assisted flow still works</td><td>Frontliner</td><td>C-01, D-08</td></tr></table>
+    </section>
+
+    <!-- 07 API -->
+    <section class="g-sec" id="api">
+      <div class="kicker">07 · API design</div>
+      <h2>Twelve endpoints, one new namespace</h2>
+      <p class="lead">Same base path, kebab-case paths, same response envelope as today. The only deliberate deviation: an explicit <code>/public/</code> namespace with its own rate-limit filter (DEC-11).</p>
+      <div class="ep"><span class="method">POST</span><code class="big">/public/tenants/resolve</code><span class="tk">A-01 · slug becomes tenant + realm, throttled, no tenant oracle</span></div>
+      <div class="ep"><span class="method get">GET</span><code class="big">/public/config/{slug}</code><span class="tk">A-01 · portal bootstrap config, cached</span></div>
+      <div class="ep"><span class="method">POST</span><code class="big">/public/registration/initiate</code><span class="tk">A-02 · validate, store pending record, send code</span></div>
+      <div class="ep"><span class="method">POST</span><code class="big">/public/registration/verify</code><span class="tk">A-03 · check code, then create login + account + history</span></div>
+      <div class="ep"><span class="method">POST</span><code class="big">/public/registration/resend</code><span class="tk">A-02 · cooldown-capped resend, old code dies</span></div>
+      <div class="ep"><span class="method chg">POST</span><code class="big">/token</code><span class="tk">B-01 · enriched: also returns KYC status + next action</span></div>
+      <div class="ep"><span class="method">POST</span><code class="big">/kyc/self/bootstrap</code><span class="tk">C-01 · create-or-resume my applicant + open attempt</span></div>
+      <div class="ep"><span class="method">POST</span><code class="big">/kyc/self/attempts/{n}/submit</code><span class="tk">C-02c · run decision rules: approve or review case</span></div>
+      <div class="ep"><span class="method get">GET</span><code class="big">/review-cases (+ detail)</code><span class="tk">D-01 · queue with scoped evidence</span></div>
+      <div class="ep"><span class="method">POST</span><code class="big">/review-cases/{id}/approve|request-redo|reject</code><span class="tk">D-02 · the only three reviewer outcomes</span></div>
+      <div class="ep"><span class="method">POST</span><code class="big">/review-cases/{id}/adjudicate</code><span class="tk">D-02b · back-office-only hit verdicts, drives existing engine call</span></div>
+      <div class="ep"><span class="method">POST</span><code class="big">/internal/kyc-status-callback</code><span class="tk">C-02c · authoritative idempotent transition</span></div>
+    </section>
+
+    <!-- 08 DATA -->
+    <section class="g-sec" id="data">
+      <div class="kicker">08 · Data model</div>
+      <h2>Additive only — rollback is flag-off</h2>
+      <p class="lead">New tables and columns are nullable/additive; migration is backfill plus dual-read, then a per-tenant flag flip.</p>
+      <table class="spec"><tr><th>Table</th><th>What it adds</th><th>Ticket</th></tr>
+        <tr><td class="mono">tenants.slug + tenants_by_slug</td><td>Readable link key per tenant</td><td>A-01</td></tr>
+        <tr><td class="mono">users.kyc_status (+ channel, consent, suspend)</td><td>Fast cached verification state for login gating</td><td>B-01</td></tr>
+        <tr><td class="mono">pending_registrations (self-deleting)</td><td>Pre-account state; nothing exists before code success</td><td>A-02</td></tr>
+        <tr><td class="mono">registration_otps (hashed, single-use)</td><td>Codes, attempt-counted and expiring</td><td>A-02</td></tr>
+        <tr><td class="mono">user_lifecycle_history (insert-only)</td><td>System-of-record journey log; head row is current state</td><td>A-03</td></tr>
+        <tr><td class="mono">kyc_attempts (auth mirror)</td><td>Attempt context without calling KYC</td><td>C-03</td></tr>
+        <tr><td class="mono">applicant.self_user_id</td><td>Binds verification to my login</td><td>C-01</td></tr>
+        <tr><td class="mono">kyc_attempt</td><td>Versioned submissions, never overwritten</td><td>C-03</td></tr>
+        <tr><td class="mono">review_case (+ verdict columns)</td><td>Queue, SLA, decisions, adjudication verdicts</td><td>D-01, D-02b</td></tr></table>
+    </section>
+
+    <!-- 09 GLOSSARY -->
+    <section class="g-sec" id="glossary">
+      <div class="kicker">09 · Glossary</div>
+      <h2>Fifteen terms you will hear</h2>
+      <table class="spec"><tr><th>Term</th><th>One line</th></tr>
+        <tr><td>Slug</td><td>Short readable tenant key in links, e.g. <code>navotas-demo</code></td></tr>
+        <tr><td>Registrant / Registered User</td><td>Person onboarding themselves / logged-in holder with a KYC status</td></tr>
+        <tr><td>Tenant / Realm</td><td>Customer organisation / its Keycloak login domain (1 to 1)</td></tr>
+        <tr><td>OTP / Pending registration</td><td>Single-use code / temporary pre-account record that self-deletes</td></tr>
+        <tr><td>Attempt</td><td>One numbered submission; old ones are kept, never overwritten</td></tr>
+        <tr><td>Review case</td><td>Human work item: pending, in review, decided (approve, redo, or reject)</td></tr>
+        <tr><td>Adjudication</td><td>Back-office-only verdict on a face-match hit; users see only "under review"</td></tr>
+        <tr><td>Lifecycle history</td><td>Append-only account log; latest row is current state</td></tr>
+        <tr><td>KYC as attribute</td><td>Verification travels as data plus token claim, not extra roles</td></tr>
+        <tr><td>FR / HLR / NFR</td><td>Numbered requirement / source requirements doc / quality attribute</td></tr>
+        <tr><td>UC / AC / DoD</td><td>Use case / acceptance checkboxes / definition of done</td></tr></table>
+      <h3>Abbreviations</h3>
+      <table class="spec"><tr><th>Short</th><th>Stands for</th><th>Short</th><th>Stands for</th></tr>
+        <tr><td>HLR</td><td>High-Level Requirements (source file in docs, FR-01…FR-33 live in §20)</td><td>FR</td><td>Functional Requirement (FR-01…FR-33)</td></tr>
+        <tr><td>NFR</td><td>Non-Functional Requirement (security, audit, performance)</td><td>UC</td><td>Use Case (UC-01…UC-10)</td></tr>
+        <tr><td>AC</td><td>Acceptance Criteria</td><td>DoD</td><td>Definition of Done</td></tr>
+        <tr><td>RBAC</td><td>Role-Based Access Control</td><td>OIDC</td><td>OpenID Connect</td></tr>
+        <tr><td>OTP</td><td>One-Time Passcode</td><td>PII</td><td>Personally Identifiable Information</td></tr>
+        <tr><td>SLA</td><td>Service-Level Agreement (deadline)</td><td>TTL</td><td>Time To Live (self-delete timer)</td></tr>
+        <tr><td>E2E</td><td>End-to-End (test)</td><td>UAT</td><td>User Acceptance Testing</td></tr>
+        <tr><td>CAPTCHA</td><td>"Completely Automated Public Turing test to tell Computers and Humans Apart" (anti-bot check)</td><td>IdP</td><td>Identity Provider (Keycloak)</td></tr>
+        <tr><td>PNID</td><td>Philippine National ID</td><td></td><td></td></tr></table>
+    </section>
+
+    <!-- 10 FRINDEX -->
+    <section class="g-sec" id="frindex">
+      <div class="kicker">10 · FR index</div>
+      <h2>Every FR, one line each</h2>
+      <p class="lead">The 33 numbered Functional Requirements from the approved High-Level Requirements doc (full source: sidebar → <b>HLR · Requirements source</b>). Every <b>FR</b> tag on a ticket below links here; every row lists the tickets that implement it.</p>
+      <p><button class="btn ghost clearRefBtn">Clear highlight</button> <span class="muted" style="font-size:12px">Removes the outline after jumping to a referenced row.</span></p>
+      <h3>Registration — FR-01 to FR-06</h3>
+      <table class="spec"><tr><th>ID</th><th>Requirement</th><th>Tickets</th></tr>
+        <tr id="fr-01"><td>FR-01</td><td>Users can start self-service registration</td><td>A-01, A-02, A-04</td></tr>
+        <tr id="fr-02"><td>FR-02</td><td>Email address or mobile number works as the username</td><td>A-01, A-02, A-04</td></tr>
+        <tr id="fr-03"><td>FR-03</td><td>Contact ownership is verified before the account is created</td><td>A-02, A-03</td></tr>
+        <tr id="fr-04"><td>FR-04</td><td>No account activates without successful verification</td><td>A-03</td></tr>
+        <tr id="fr-05"><td>FR-05</td><td>Credentials are stored securely</td><td>A-03</td></tr>
+        <tr id="fr-06"><td>FR-06</td><td>Registration and verification are audit-logged</td><td>A-02, A-03, B-03, D-07</td></tr></table>
+      <h3>Login and KYC routing — FR-07 to FR-12</h3>
+      <table class="spec"><tr><th>ID</th><th>Requirement</th><th>Tickets</th></tr>
+        <tr id="fr-07"><td>FR-07</td><td>Registered users log in with verified username plus password</td><td>B-01</td></tr>
+        <tr id="fr-08"><td>FR-08</td><td>KYC status is retrieved after successful login</td><td>B-01</td></tr>
+        <tr id="fr-09"><td>FR-09</td><td>KYC-protected apps need the required KYC status</td><td>B-01, B-02</td></tr>
+        <tr id="fr-10"><td>FR-10</td><td>Unverified users keep access to non-KYC functions</td><td>B-01, B-02</td></tr>
+        <tr id="fr-11"><td>FR-11</td><td>Users can start or continue KYC onboarding</td><td>B-02, C-01</td></tr>
+        <tr id="fr-12"><td>FR-12</td><td>Redo-status users restart onboarding in the same module</td><td>C-01, D-04</td></tr></table>
+      <h3>KYC module — FR-13 to FR-21</h3>
+      <table class="spec"><tr><th>ID</th><th>Requirement</th><th>Tickets</th></tr>
+        <tr id="fr-13"><td>FR-13</td><td>Module supports ID capture</td><td>C-01, C-02a</td></tr>
+        <tr id="fr-14"><td>FR-14</td><td>Module supports OCR text extraction</td><td>C-02a</td></tr>
+        <tr id="fr-15"><td>FR-15</td><td>Module supports liveness detection</td><td>C-02b</td></tr>
+        <tr id="fr-16"><td>FR-16</td><td>Module supports selfie capture</td><td>C-02b</td></tr>
+        <tr id="fr-17"><td>FR-17</td><td>Biometric one-to-many matching runs where required</td><td>C-02b</td></tr>
+        <tr id="fr-18"><td>FR-18</td><td>PhilSys verification runs for supported national-ID flows</td><td>C-02b</td></tr>
+        <tr id="fr-19"><td>FR-19</td><td>Additional KYC information is captured</td><td>C-02a, C-02c</td></tr>
+        <tr id="fr-20"><td>FR-20</td><td>Decisions come from configurable verification rules</td><td>C-02c</td></tr>
+        <tr id="fr-21"><td>FR-21</td><td>Each new submission is a separate onboarding attempt</td><td>C-02c, C-03</td></tr></table>
+      <h3>Exceptions and review — FR-22 to FR-33</h3>
+      <table class="spec"><tr><th>ID</th><th>Requirement</th><th>Tickets</th></tr>
+        <tr id="fr-22"><td>FR-22</td><td>Configurable exceptions and conflicts are detected</td><td>D-01, D-02b</td></tr>
+        <tr id="fr-23"><td>FR-23</td><td>Review cases are created for human review</td><td>D-01, D-02b</td></tr>
+        <tr id="fr-24"><td>FR-24</td><td>An authorized reviewer queue exists</td><td>D-01, D-03</td></tr>
+        <tr id="fr-25"><td>FR-25</td><td>Reviewers can see the evidence behind an attempt</td><td>D-01, D-02b, D-03</td></tr>
+        <tr id="fr-26"><td>FR-26</td><td>Reviewers approve, request redo, or reject</td><td>D-02, D-02b</td></tr>
+        <tr id="fr-27"><td>FR-27</td><td>Users are notified when a redo is required</td><td>D-02, D-04, D-05</td></tr>
+        <tr id="fr-28"><td>FR-28</td><td>Users redo onboarding in the same module</td><td>D-04</td></tr>
+        <tr id="fr-29"><td>FR-29</td><td>Users can retake ID and selfie or submit another supported ID</td><td>D-04</td></tr>
+        <tr id="fr-30"><td>FR-30</td><td>Prior attempts are retained for audit and traceability</td><td>C-03</td></tr>
+        <tr id="fr-31"><td>FR-31</td><td>Prior attempt data is never auto-deleted, overwritten, or merged</td><td>C-03</td></tr>
+        <tr id="fr-32"><td>FR-32</td><td>All reviewer decisions and manual actions are auditable</td><td>D-02, D-02b, D-07</td></tr>
+        <tr id="fr-33"><td>FR-33</td><td>Review functions are restricted to authorized users</td><td>D-01, D-03</td></tr></table>
+      <h3>Non-functional requirements (HLR §21 — no numbers, three groups)</h3>
+      <table class="spec"><tr><th>Group</th><th>What it demands</th><th>Tickets</th></tr>
+        <tr><td>Security</td><td>Hashed passwords; single-use expiring codes; rate-limited public endpoints; encryption in transit and at rest; least-privilege admin; anti-enumeration</td><td>D-06, A-02, A-03</td></tr>
+        <tr><td>Auditability</td><td>Every journey event recorded (registration, codes, login, attempts, captures, checks, decisions, verdicts, notifications, status changes)</td><td>D-07, B-03</td></tr>
+        <tr><td>Configurability</td><td>Per-tenant ID types, code limits, verification rules, thresholds, SLAs, retry caps, redo reasons, templates, channels</td><td>C-02c, D-01, D-05, D-08</td></tr></table>
+    </section>
+
+    <!-- 11 TICKETS -->
+    <section class="g-sec" id="tickets">
+      <div class="kicker">10 · Tickets</div>
+      <h2>21 stories, click to expand <span class="pts-val">· ≈114 points</span></h2>
+      <p class="lead">Each ticket: persona story (<b>who, then action, then result</b>), what to build, checks, FR/UC/dependency links, and the doc section to implement from. <b>Blue dotted links</b> jump to the annex file or FR row they cite.</p>
+      <p><button class="btn ghost" id="ptsToggle">Show estimates</button> <button class="btn ghost" id="toggleAll">Expand all</button> <span class="muted" style="font-size:12px">Estimates hide story-point badges; expand-all opens every ticket at once.</span></p>
+      <div class="apanel" id="planPanel">
+        <div class="arow">
+          <label>Team member
+            <span style="display:flex;gap:6px"><input id="teamAdd" placeholder="Add name" style="width:150px"><button class="btn ghost" id="teamAddBtn">Add</button></span>
+          </label>
+          <div><div class="chips" id="teamChips"></div><div class="muted" style="font-size:11px" id="assignCount"></div><div class="filter-note" id="filterNote"></div></div>
+          <div style="margin-left:auto;display:flex;gap:8px">
+            <button class="btn ghost" id="exportBtn">Export JSON</button>
+            <button class="btn ghost" id="importBtn">Import JSON</button>
+            <input type="file" id="importFile" accept="application/json,.json" hidden>
+            <button class="btn primary" id="addTktBtn">+ Add ticket</button>
+          </div>
+        </div>
+        <datalist id="teamList"></datalist>
+        <div id="cformWrap" hidden>
+          <div class="grid2">
+            <label>Ticket ID <input id="cId" placeholder="E-01"></label>
+            <label>Title <input id="cTitle" placeholder="Short title"></label>
+            <label>Priority <select id="cPri"><option>Critical</option><option>Major</option><option>Minor</option><option>Blocker</option><option>Trivial</option></select></label>
+            <label>Points <input id="cPts" type="number" min="0" value="3"></label>
+            <label>Component(s) <input id="cComp" placeholder="auth-service"></label>
+            <label>Details <textarea id="cDet" rows="2" placeholder="Requirements and acceptance criteria"></textarea></label>
+          </div>
+          <div style="margin-top:8px"><button class="btn primary" id="cSave">Save local ticket</button></div>
+        </div>
+      </div>
+      <div id="customWrap" hidden>
+        <div class="feat-head"><h3>Local tickets — added in this deck</h3><span class="count">stored in this browser only</span></div>
+        <div id="customList"></div>
+      </div>
+
+      <div class="feat-head"><h3>Feature A — Public Self-Registration</h3><span class="count">4 tickets · Registrant creates an account unassisted</span></div>
+      <details class="tkt"><summary>A-01 — Self-Service Tenant Resolution by Slug and Portal Bootstrap <span class="badge crit">Critical</span> <span class="badge pts">5 pts</span> <span class="badge comp">auth-service</span> <span class="badge comp">auth-portal</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Registrant</b>, I want to <b>open a tenant-specific registration link</b> so that <b>I register under the correct organisation and login realm without needing an existing account</b>.</p>
+        <p><b>Build</b> (<code>03 §2</code>, <code>04 §2.1</code>): resolve + config endpoints (throttled, identical replies for unknown/disabled slugs); slug storage + pilot seeds; portal shell with generic "not available" page.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Valid slug returns tenant, realm, and policy under 300 ms p95 with a resolve audit entry.</li><li>Unknown versus disabled slugs are indistinguishable in shape and timing.</li><li>No client secret or internal IDs leak in responses.</li><li>Burst traffic trips the rate limit with a retry delay.</li></ul>
+        <p><b>FR</b> FR-01, FR-02 · <b>UC</b> UC-01 · <b>Blocked by</b> PM input (pilot slug list).</p>
+      </div></details>
+      <details class="tkt"><summary>A-02 — Pending Registration With OTP Initiation and Resend <span class="badge crit">Critical</span> <span class="badge pts">8 pts</span> <span class="badge comp">auth-service</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Registrant</b>, I want <b>a one-time passcode sent to my email or mobile</b> so that <b>I can prove I control it before any account exists</b>.</p>
+        <p><b>Build</b> (<code>03 §2</code>, <code>04 §2.3–2.4</code>): initiate (validate, anti-bot, silent existence check, pending + hashed OTP, send code); resend (60 s cooldown, max 5, old code dies); safe status polling.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>No user or login-system row exists at this stage (verified by database and login-system query).</li><li>Codes are hashed, single-use, and expire per tenant setting.</li><li>Over-limit resends are refused without revealing any state.</li><li>Email and SMS paths are contract-tested (SMS through a mock adapter).</li></ul>
+        <p><b>FR</b> FR-01–FR-03, FR-06 · <b>UC</b> UC-01, UC-02 · <b>Blocked by</b> A-01.</p>
+      </div></details>
+      <details class="tkt"><summary>A-03 — OTP Verification With Keycloak and Cassandra Account Creation <span class="badge crit">Critical</span> <span class="badge pts">8 pts</span> <span class="badge comp">auth-service</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Registrant who proved control of my contact</b>, I want <b>my account created automatically</b> so that <b>nobody can squat it and I can log in immediately</b>.</p>
+        <p><b>Build</b> (<code>03 §2</code>, <code>04 §2.2/2.5</code>): verify endpoint (timing-safe compare, attempts, expiry); then Keycloak create, Cassandra user + lookup + default role, lifecycle seed; compensating disable + reconciliation; memory-hard password hash.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Each code works exactly once.</li><li>Exhausted or expired flows return terminal codes and pending records self-delete.</li><li>The login-system identity links to the account and login works immediately.</li><li>Injected partial failure leaves no enabled half-created login.</li></ul>
+        <p><b>FR</b> FR-03–FR-06 · <b>UC</b> UC-01 · <b>Blocked by</b> A-02.</p>
+      </div></details>
+      <details class="tkt"><summary>A-04 — Self-Service Register, Verify, and Done Pages <span class="badge maj">Major</span> <span class="badge pts">5 pts</span> <span class="badge comp">auth-portal</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Registrant</b>, I want <b>clear create-account and verify-code screens matching the mockups</b> so that <b>I can self-register without help</b>.</p>
+        <p><b>Build:</b> register (channel radio, identifier, passwords, versioned terms, anti-bot), verify (code boxes, resend timer, masked destination), done (login button); mirror server validation; catalogue error wording.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Layouts match the approved mockups on desktop and mobile widths.</li><li>The full flow passes end to end on staging.</li><li>Labels, focus order, and one-time-code autofill are accessible.</li></ul>
+        <p><b>FR</b> FR-01, FR-02 · <b>UC</b> UC-01, UC-02 · <b>Blocked by</b> A-01.</p>
+      </div></details>
+
+      <div class="feat-head"><h3>Feature B — Login, KYC Decision, RBAC Attribute</h3><span class="count">3 tickets · right landing per status</span></div>
+      <details class="tkt"><summary>B-01 — Login Response With KYC Status and OIDC Claims <span class="badge crit">Critical</span> <span class="badge pts">5 pts</span> <span class="badge comp">auth-service</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Registered User</b>, I want to <b>be routed to verification only when needed</b> so that <b>other features work immediately</b>.</p>
+        <p><b>Build</b> (<code>03 §3</code>): login returns KYC status + attempt + next action; identity token gains machine-readable KYC claims; app lists flag gated entries.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Redo-status login returns continue plus onboarding link; under-review login returns wait with no relaunch.</li><li>A direct gated API call with a false claim is denied even when bypassing the UI.</li><li>Non-gated applications keep working when the KYC back office is down.</li></ul>
+        <p><b>FR</b> FR-07–FR-10 · <b>UC</b> UC-03 · <b>Blocked by</b> A-03.</p>
+      </div></details>
+      <details class="tkt"><summary>B-02 — KYC-Aware App List and Status Page <span class="badge maj">Major</span> <span class="badge pts">3 pts</span> <span class="badge comp">auth-portal</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Registered User</b>, I want to <b>see which apps need verification and my current state</b> so that <b>I know what to do next</b>.</p>
+        <p><b>Build:</b> filtered/badged tiles; status page for start/continue/waiting/redo/rejected/blocked; redo deep-link with attempt hint.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Verified users see the full application list.</li><li>Others see the filtered list plus a call to action.</li><li>Review, redo, rejected, and blocked states all render correctly.</li></ul>
+        <p><b>FR</b> FR-09–FR-12 · <b>UC</b> UC-03, UC-05 · <b>Blocked by</b> B-01.</p>
+      </div></details>
+      <details class="tkt"><summary>B-03 — Admin Suspend and Lifecycle History Lookup <span class="badge min">Minor</span> <span class="badge pts">3 pts</span> <span class="badge comp">auth-service</span></summary><div class="tbody">
+        <p><b>Story:</b> As an <b>Administrator</b>, I want to <b>suspend/reactivate accounts and read lifecycle history</b> so that <b>I can handle abuse and support cases</b>.</p>
+        <p><b>Build:</b> suspend/unsuspend endpoints (distinct from lockout and delete) + paged read-only history.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>A suspended user's login is denied with a reason.</li><li>History shows who acted and when.</li></ul>
+        <p><b>FR</b> FR-06 · <b>UC</b> UC-09 · <b>Blocked by</b> A-03.</p>
+      </div></details>
+
+      <div class="feat-head"><h3>Feature C — Self-Service KYC Onboarding</h3><span class="count">5 tickets · same module, unassisted</span></div>
+      <details class="tkt"><summary>C-01 — OWA Self Mode With Applicant Self-Bootstrap <span class="badge crit">Critical</span> <span class="badge pts">8 pts</span> <span class="badge comp">owa</span> <span class="badge comp">kyc-api</span></summary><div class="tbody">
+        <p><b>Story:</b> As an <b>unverified Registered User</b>, I want to <b>start verification alone in the same module frontliners use</b> so that <b>I need no in-person help</b>.</p>
+        <p><b>Build</b> (<code>03 §5.1</code>): public <code>/self/:slug</code> route with runtime tenant + user token; idempotent bootstrap binding my user ID; assisted mode untouched.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>No frontliner login is needed to open self mode.</li><li>Reopening resumes the same attempt; no duplicate applicant records.</li><li>The assisted end-to-end flow still passes unchanged.</li></ul>
+        <p><b>FR</b> FR-11–FR-13 · <b>UC</b> UC-04, UC-10 · <b>Blocked by</b> A-01, B-01.</p>
+      </div></details>
+      <details class="tkt"><summary>C-02a — Self ID Capture With DOT Inspection and OCR Provenance <span class="badge crit">Critical</span> <span class="badge pts">8 pts</span> <span class="badge comp">kyc-api</span> <span class="badge comp">owa</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Registered User</b>, I want to <b>photograph my ID with the same fraud checks as assisted onboarding</b> so that <b>my document is verified remotely</b>.</p>
+        <p><b>Build:</b> reuse document inspector + portrait crop; keep OCR-read, user-confirmed, and externally-verified values separate; file refs + hashes only.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Tampered or expired sample IDs are flagged exactly as in assisted mode.</li><li>User corrections never overwrite OCR-extracted values.</li></ul>
+        <p><b>FR</b> FR-13, FR-14 · <b>UC</b> UC-04 · <b>Blocked by</b> C-01, C-03.</p>
+      </div></details>
+      <details class="tkt"><summary>C-02b — PhilSys Verification With Liveness and Biometric Matching <span class="badge crit">Critical</span> <span class="badge pts">8 pts</span> <span class="badge comp">kyc-api</span> <span class="badge comp">owa</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Registered User</b>, I want <b>my face and national ID checked against official sources</b> so that <b>impersonation is caught</b>.</p>
+        <p><b>Build:</b> PhilSys check for national IDs only (stored as evidence); selfie quality + liveness + portrait similarity; 1:N face search where any hit means human review — never auto-merge or auto-reject.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Non-national IDs skip the PhilSys step cleanly.</li><li>A duplicate biometric always yields review plus a case.</li><li>The user sees only a generic "under review" message.</li></ul>
+        <p><b>FR</b> FR-15–FR-18 · <b>UC</b> UC-04, UC-06, UC-07 · <b>Blocked by</b> C-01, C-03.</p>
+      </div></details>
+      <details class="tkt"><summary>C-02c — Additional Info Form With Attempt Submit and Status Callback <span class="badge crit">Critical</span> <span class="badge pts">5 pts</span> <span class="badge comp">kyc-api</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Registered User</b>, I want to <b>submit my verification and receive a decision</b> so that <b>I finish without waiting on staff</b>.</p>
+        <p><b>Build</b> (<code>03 §5.2/5.4</code>): tenant-configured extra form; submit running decision rules; idempotent status callback with stale-event guard.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>An all-checks-pass submission verifies the user within the agreed time, and retried callbacks are safe.</li><li>Exception submissions open review cases.</li><li>Redelivered callbacks never move the status backwards.</li></ul>
+        <p><b>FR</b> FR-19–FR-21 · <b>UC</b> UC-04, UC-05 · <b>Blocked by</b> C-02a, C-02b.</p>
+      </div></details>
+      <details class="tkt"><summary>C-03 — KYC Attempt Versioning With Auth-Side Mirror <span class="badge maj">Major</span> <span class="badge pts">5 pts</span> <span class="badge comp">kyc-api</span> <span class="badge comp">auth-service</span></summary><div class="tbody">
+        <p><b>Story:</b> As an <b>Auditor</b>, I want <b>every submission preserved as its own numbered attempt</b> so that <b>history is traceable</b>.</p>
+        <p><b>Build</b> (<code>04 §2.6/4.2</code>): attempt table + auth-side mirror; olds marked superseded (data kept); latest approval is current.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Two sequential attempts retain both evidence sets.</li><li>The current-record query returns the latest approved attempt.</li></ul>
+        <p><b>FR</b> FR-21, FR-30, FR-31 · <b>UC</b> UC-04, UC-05 · <b>Blocked by</b> C-01.</p>
+      </div></details>
+
+      <div class="feat-head"><h3>Feature D — Review, Adjudication, Redo, Notifications</h3><span class="count">6 tickets · reviewer-facing</span></div>
+      <details class="tkt"><summary>D-01 — Review Case Queue With Scoped Evidence and SLA <span class="badge maj">Major</span> <span class="badge pts">8 pts</span> <span class="badge comp">kyc-api</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Reviewer</b>, I want <b>a queue of exception cases with right-sized evidence</b> so that <b>I can triage without seeing raw biometric data</b>.</p>
+        <p><b>Build</b> (<code>03 §5.3</code>, <code>04 §4.3</code>): paged queue + filters; case detail with match results only; auto priority + deadline; assignment.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Queue pagination and filters work at volume seed.</li><li>The default evidence bundle contains no biometric templates.</li></ul>
+        <p><b>FR</b> FR-22–FR-25, FR-33 · <b>UC</b> UC-08 · <b>Blocked by</b> C-03.</p>
+      </div></details>
+      <details class="tkt"><summary>D-02 — Reviewer Approve, Redo, and Reject Decisions <span class="badge crit">Critical</span> <span class="badge pts">5 pts</span> <span class="badge comp">kyc-api</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Reviewer</b>, I want <b>exactly three outcomes — approve, redo, or reject</b> so that <b>every user gets a clear next step</b>.</p>
+        <p><b>Build:</b> three transition endpoints on a configured reason-code list; plain-language redo instructions; audit + notify + auth callback each time.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Each decision moves the attempt, applicant record, and auth lifecycle together (eventually consistent, idempotent).</li><li>Redo notifications contain no biometric or conflict internals.</li></ul>
+        <p><b>FR</b> FR-26, FR-27, FR-32 · <b>UC</b> UC-05, UC-08 · <b>Blocked by</b> D-01.</p>
+      </div></details>
+      <details class="tkt"><summary>D-02b — Biometric Hit Adjudication by the Back Office <span class="badge crit">Critical</span> <span class="badge pts">5 pts</span> <span class="badge comp">kyc-api</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>back-office Adjudicator</b>, I want <b>match hits to wait in pending for my verdict</b> so that <b>no duplicate is auto-cleared and no user learns they were flagged</b>.</p>
+        <p><b>Build</b> (<code>03 §5.3</code>): comparison endpoint (adjudicators only, gated/watermarked/audited) + verdict endpoint driving the <b>existing</b> engine call; server blocks approving unadjudicated duplicates.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>A hit attempt stays under review with no user-visible duplicate hint until a verdict exists.</li><li>Different person resumes automation; same person routes to reject or fraud handling plus cool-down; inconclusive routes to redo with fresh capture.</li><li>Approving an unadjudicated duplicate case is rejected by the server; every verdict is audited with the actor.</li><li>The engine-level adjudication call is issued per verdict; a case cannot close while the engine still waits.</li></ul>
+        <p><b>FR</b> FR-22, FR-23, FR-25, FR-26, FR-32 · <b>UC</b> UC-06, UC-07 · <b>Blocked by</b> D-01.</p>
+      </div></details>
+      <details class="tkt"><summary>D-03 — Review Queue and Case Detail Screens <span class="badge maj">Major</span> <span class="badge pts">5 pts</span> <span class="badge comp">reviewer-ui</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Reviewer</b>, I want <b>queue and case-detail screens matching the approved layout</b> so that <b>I can decide efficiently</b>.</p>
+        <p><b>Build:</b> queue table + full case detail per HLR §16; reviewer permission gating, adjudication view extra-gated. Host surface to confirm at planning.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Unauthorized users get a 403 response.</li><li>Every decision is audited with the actor.</li></ul>
+        <p><b>FR</b> FR-24, FR-25, FR-33 · <b>UC</b> UC-08 · <b>Blocked by</b> D-01, D-02, D-02b.</p>
+      </div></details>
+      <details class="tkt"><summary>D-04 — Redo Notification With Login and New Attempt <span class="badge maj">Major</span> <span class="badge pts">5 pts</span> <span class="badge comp">auth-portal</span> <span class="badge comp">owa</span> <span class="badge comp">kyc-api</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Registered User asked to redo verification</b>, I want to <b>log in and retry in the same module</b> so that <b>I can complete verification</b>.</p>
+        <p><b>Build:</b> plain-language notify triggers; login continue deep-link; brand-new attempt number; reprocess; priors untouched.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>The user is notified with plain-language instructions.</li><li>Login deep-links into a brand-new attempt number.</li><li>The full chain ends with the user verified and granted access.</li></ul>
+        <p><b>FR</b> FR-12, FR-27–FR-29 · <b>UC</b> UC-05 · <b>Blocked by</b> D-02, B-02.</p>
+      </div></details>
+      <details class="tkt"><summary>D-05 — Notification Templates With Delivery Audit <span class="badge maj">Major</span> <span class="badge pts">5 pts</span> <span class="badge comp">auth-service</span> <span class="badge comp">platform</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Registered User</b>, I want <b>timely verification and decision notifications</b> so that <b>I always know what to do next</b>.</p>
+        <p><b>Build:</b> five versioned templates (code, review-received, redo, approved, rejected); swappable SMS adapter replacing the stub; delivery receipts audited; per-tenant branding.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>All five notification types render with correct tenant branding.</li><li>Delivery failures retry and raise alerts.</li></ul>
+        <p><b>FR</b> FR-27 · <b>UC</b> UC-01, UC-05 · <b>Blocked by</b> A-02, D-02.</p>
+      </div></details>
+      <div class="feat-head"><h3>Internal delivery — Hardening, Audit, Rollout</h3><span class="count">3 tickets · platform and ops, no end-user UI</span></div>
+      <details class="tkt"><summary>D-06 — Public Surface Hardening Against Abuse <span class="badge crit">Critical</span> <span class="badge pts">5 pts</span> <span class="badge comp">auth-service</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Security Engineer</b>, I want <b>public endpoints protected by rate limits, anti-bot checks, and anti-probing replies</b> so that <b>codes and logins cannot be brute-forced or accounts enumerated</b>.</p>
+        <p><b>Build</b> (<code>06 §3–4</code>): token buckets per identifier/IP/device; anti-bot on registration with escalation; identical replies + normalised timing; blocked attempts audited.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Simulated burst and credential-stuffing attacks are blocked.</li><li>Legitimate flows are unaffected.</li><li>Responses and timing reveal nothing to probers.</li></ul>
+        <p><b>FR</b> NFR security · <b>UC</b> UC-01, UC-02 · <b>Blocked by</b> A-02, A-03.</p>
+      </div></details>
+      <details class="tkt"><summary>D-07 — Audit Completeness With Support Exports <span class="badge maj">Major</span> <span class="badge pts">3 pts</span> <span class="badge comp">auth-service</span> <span class="badge comp">kyc-api</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Support Analyst</b>, I want <b>the full journey queryable</b> so that <b>I can investigate any case</b>.</p>
+        <p><b>Build</b> (<code>06 §7</code>): emit every HLR audit event + paged exports.</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Every HLR audit event is emitted, with paged exports for support and compliance.</li><li>A golden-path run reproduces the nine-row example history with attempt links.</li></ul>
+        <p><b>FR</b> FR-06, FR-32 · <b>UC</b> UC-09 · <b>Blocked by</b> final sweep.</p>
+      </div></details>
+      <details class="tkt"><summary>D-08 — Pilot Tenant Enablement With Rollback Plan <span class="badge maj">Major</span> <span class="badge pts">2 pts</span> <span class="badge comp">platform</span></summary><div class="tbody">
+        <p><b>Story:</b> As a <b>Release Manager</b>, I want <b>per-tenant flags, dashboards, and a rehearsed rollback</b> so that <b>the pilot launches safely</b>.</p>
+        <p><b>Build:</b> enablement flags; dual-read monitoring; callback-lag and deadline alerts; rollback = flip flags (no DB rollback).</p>
+        <p><b>Acceptance criteria:</b></p><ul class="ac"><li>Pilot tenant is onboarded behind flags.</li><li>Rollback drill passes.</li><li>Delivery, callback-lag, and deadline dashboards are live.</li></ul>
+        <p><b>FR</b> rollout · <b>UC</b> UC-01, UC-10 · <b>Blocked by</b> A-01.</p>
+      </div></details>
+      <div class="note"><b>Suggested sprints:</b> 1: A-01, D-08 + decisions · 2: A-02, A-03, D-06 · 3: A-04, B-01, B-02 · 4: C-01, C-03, B-03 · 5: C-02a, C-02b · 6: C-02c, D-01 · 7: D-02, D-02b, D-04 · 8: D-03, D-05, D-07, pilot. Full Jira fields: <code>05-user-stories-tickets.md</code>.</div>
+    </section>
+
+    <!-- 11 ROLLOUT -->
+    <section class="g-sec" id="rollout">
+      <div class="kicker">11 · Rollout + next steps</div>
+      <h2>Dark launch, then tenants one by one</h2>
+      <ul>
+        <li><b>Flags first:</b> everything hides behind per-tenant switches; rollback is flag-off, never a database rollback.</li>
+        <li><b>Risks to watch:</b> SMS vendor unsigned (blocks A-02/D-05) · password-hash decision open (blocks A-03) · review-queue overload (priority + SLA + escalation) · Keycloak partial creates (compensating disable + reconciliation).</li>
+        <li><b>Next steps:</b> decide the open questions (<code>01 §12</code>) → search Jira for duplicates → file the 21 tickets from <code>05</code> → confirm the D-03 host UI → contract the SMS vendor.</li>
+      </ul>
+      <div class="cta-row">
+        <a class="btn primary" href="#tickets">Back to tickets ↑</a>
+        <a class="btn ghost" href="#cover">Back to top ↑</a>
+      </div>
+      <p class="muted" style="font-size:12px">TDD by the Auth Team · full design in <code>docs/cps-272/</code> · diagrams: Mermaid (needs internet once)</p>
+    </section>
+  </div>
+</div>
+<div class="docview" id="docview" hidden>
+  <div class="docview-bar">
+    <span class="crumb" id="doctitle">Document</span>
+    <div class="spacer"></div>
+    <a class="btn ghost" id="docraw" href="#" target="_blank" rel="noopener">Open raw</a>
+    <button class="btn primary" id="docclose">Close ✕</button>
+  </div>
+  <div class="docview-body" id="docbody"></div>
+</div>
+<nav class="g-pagenav" aria-label="Section navigation">
+  <button class="btn ghost" id="gprev">‹ Prev</button>
+  <span id="gcount">1 / 12</span>
+  <button class="btn primary" id="gnext">Next ›</button>
+</nav>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true, securityLevel: "loose" });</script>
+<script>
+  const links = [...document.querySelectorAll('.g-link')];
+  const secs = links.map((a) => document.querySelector(a.getAttribute('href')));
+  const prog = document.getElementById('gprog');
+  const crumb = document.getElementById('crumb');
+  const gcount = document.getElementById('gcount');
+  const gprev = document.getElementById('gprev');
+  const gnext = document.getElementById('gnext');
+  let cur = 0, navigating = false, navTimer = null;
+  function paint() {
+    links.forEach((a, k) => a.classList.toggle('on', k === cur));
+    if (links[cur]) crumb.textContent = links[cur].textContent.trim().replace(/\s+/g, ' ').replace(/^(\d+)\s*/, '$1 · ');
+    gcount.textContent = (cur + 1) + ' / ' + secs.length;
+    gprev.disabled = cur === 0;
+    gnext.disabled = cur === secs.length - 1;
+    const sc = window.scrollY / (document.body.scrollHeight - innerHeight);
+    prog.style.width = Math.round(Math.min(1, Math.max(0, sc)) * 100) + '%';
+  }
+  function go(n) {
+    if (!docview.hidden) { closeDoc(); return; }
+    cur = Math.min(secs.length - 1, Math.max(0, n));
+    paint();
+    navigating = true;
+    clearTimeout(navTimer);
+    navTimer = setTimeout(() => { navigating = false; }, 900);
+    if (secs[cur]) secs[cur].scrollIntoView({ behavior: 'smooth' });
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }
+  gprev.onclick = () => go(cur - 1);
+  gnext.onclick = () => go(cur + 1);
+  document.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    if (!docview.hidden) return; /* viewer open: arrows scroll the doc, Esc closes it */
+    const tag = (e.target && e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); go(cur + 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); go(cur - 1); }
+  });
+  const io = new IntersectionObserver((es) => {
+    if (navigating) return;
+    es.forEach((e) => {
+      if (!e.isIntersecting) return;
+      const i = secs.indexOf(e.target);
+      if (i >= 0) { cur = i; paint(); }
+    });
+  }, { rootMargin: '-40% 0px -55% 0px' });
+  secs.forEach((s) => s && io.observe(s));
+  document.querySelectorAll('a[href^="#"]').forEach((a) => a.addEventListener('click', (e) => {
+    const t = document.querySelector(a.getAttribute('href'));
+    if (t) { e.preventDefault(); if (!docview.hidden) closeDoc(); t.scrollIntoView({ behavior: 'smooth', block: a.classList.contains('ref') ? 'center' : 'start' }); }
+  }));
+  function setTheme(t) {
+    document.documentElement.dataset.theme = t;
+    document.getElementById('themeLight').classList.toggle('active', t === 'light');
+    document.getElementById('themeDark').classList.toggle('active', t === 'dark');
+    try { localStorage.setItem('cps272-theme', t); } catch (err) {}
+  }
+  document.getElementById('themeLight').onclick = () => setTheme('light');
+  document.getElementById('themeDark').onclick = () => setTheme('dark');
+  let saved = 'light';
+  try { saved = localStorage.getItem('cps272-theme') || 'light'; } catch (err) {}
+  setTheme(saved);
+  /* Auto-link annex refs (03 §2) to source files and FR-01 to the FR index. Skips links, code-adjacent markup handled inline, and diagrams. */
+  (function linkify() {
+    const ANNEX = { '01':'01-TDD-main.md','02':'02-architecture-diagrams.md','03':'03-api-design.md','04':'04-data-model.md','05':'05-user-stories-tickets.md','06':'06-security-errorhandling.md','07':'07-glossary.md','08':'08-use-cases.md' };
+    const walker = document.createTreeWalker(document.querySelector('.g-main'), NodeFilter.SHOW_TEXT, { acceptNode(n) {
+      if (!n.nodeValue) return NodeFilter.FILTER_REJECT;
+      const p = n.parentElement;
+      if (!p || /^(A|PRE|SCRIPT|STYLE)$/.test(p.tagName) || p.closest('.mermaid') || p.closest('#frindex')) return NodeFilter.FILTER_REJECT;
+      return (/\b0[1-8] §\d/.test(n.nodeValue) || /\bFR-\d{2}\b/.test(n.nodeValue) || /\bHLR §\d/.test(n.nodeValue) || /\bUC-\d{2}\b/.test(n.nodeValue)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+    }});
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    const re = /\b(0[1-8]) (§\d[\w.\-–]*)|\bFR-(\d{2})|\b(HLR)( §\d[\w.\-]*)|\bUC-(\d{2})/g;
+    nodes.forEach(n => {
+      let m, last = 0, hit = false;
+      const frag = document.createDocumentFragment();
+      re.lastIndex = 0;
+      while ((m = re.exec(n.nodeValue))) {
+        hit = true;
+        frag.appendChild(document.createTextNode(n.nodeValue.slice(last, m.index)));
+        if (m[1]) {
+          const a = document.createElement('a');
+          a.className = 'ref';
+          a.href = 'docs/cps-272/' + ANNEX[m[1]];
+          a.textContent = m[1] + ' ' + m[2];
+          a.title = 'Open ' + ANNEX[m[1]] + ' in docs/cps-272/';
+          frag.appendChild(a);
+        } else if (m[3]) {
+          const a = document.createElement('a');
+          a.className = 'ref';
+          a.href = '#fr-' + m[3];
+          a.textContent = 'FR-' + m[3];
+          a.title = 'Jump to FR-' + m[3] + ' in the FR index (section 10)';
+          frag.appendChild(a);
+        } else if (m[4]) {
+          const a = document.createElement('a');
+          a.className = 'ref';
+          a.href = 'docs/cps-272/HLR-Self-Service-Registration-KYC.md';
+          a.textContent = m[4] + (m[5] || '');
+          a.title = 'Open the High-Level Requirements source file';
+          frag.appendChild(a);
+        } else if (m[6]) {
+          const skip = n.parentElement && n.parentElement.closest('#usecases');
+          if (skip) {
+            frag.appendChild(document.createTextNode(m[0]));
+          } else {
+            const a = document.createElement('a');
+            a.className = 'ref';
+            a.href = '#uc-' + m[6];
+            a.textContent = 'UC-' + m[6];
+            a.title = 'Jump to UC-' + m[6] + ' in the use cases (section 06)';
+            frag.appendChild(a);
+          }
+        }
+        last = m.index + m[0].length;
+      }
+      if (hit) { frag.appendChild(document.createTextNode(n.nodeValue.slice(last))); n.replaceWith(frag); }
+    });
+  })();
+  /* Hide/show story-point estimates */
+  const ptsBtn = document.getElementById('ptsToggle');
+  if (ptsBtn) ptsBtn.onclick = () => {
+    const hidden = document.body.classList.toggle('hide-pts');
+    ptsBtn.textContent = hidden ? 'Show estimates' : 'Hide estimates';
+  };
+  document.querySelectorAll('.clearRefBtn').forEach(clearBtn => { clearBtn.onclick = () => {
+    try { history.replaceState(null, document.title, window.location.pathname + window.location.search); }
+    catch (e) { window.location.hash = ' '; }
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }; });
+  const allBtn = document.getElementById('toggleAll');
+  if (allBtn) allBtn.onclick = () => {
+    const boxes = [...document.querySelectorAll('#tickets details.tkt')];
+    const expand = boxes.some(d => !d.open);
+    boxes.forEach(d => { d.open = expand; });
+    allBtn.textContent = expand ? 'Collapse all' : 'Expand all';
+  };
+  /* In-deck markdown viewer: sidebar docs + annex links render readably here instead of raw text. */
+  const docview = document.getElementById('docview');
+  const docbody = document.getElementById('docbody');
+  const doctitle = document.getElementById('doctitle');
+  const docraw = document.getElementById('docraw');
+  document.getElementById('docclose').onclick = closeDoc;
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !docview.hidden) closeDoc();
+  });
+  function closeDoc() {
+    docview.hidden = true;
+    document.body.style.overflow = '';
+    document.querySelectorAll('a.g-doc.on').forEach(x => x.classList.remove('on'));
+  }
+  async function openDoc(href, label, link) {
+    doctitle.textContent = label || href;
+    docraw.href = href;
+    docbody.innerHTML = '<p class="muted">Loading…</p>';
+    docview.hidden = false;
+    document.body.style.overflow = 'hidden';
+    docbody.scrollTop = 0;
+    document.querySelectorAll('a.g-doc.on').forEach(x => x.classList.remove('on'));
+    const key = (href.split('/').pop() || '').toLowerCase();
+    const match = link || [...document.querySelectorAll('a.g-doc')].find(x => (x.getAttribute('href') || '').toLowerCase().endsWith('/' + key));
+    if (match) match.classList.add('on');
+    if (!window.marked || !marked.parse) {
+      docbody.innerHTML = '<div class="note"><b>Renderer not loaded.</b> Go online once so the markdown renderer downloads, then click again.</div>';
+      return;
+    }
+    try {
+      const res = await fetch(href);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      docbody.innerHTML = marked.parse(await res.text());
+      docbody.querySelectorAll('pre code.language-mermaid').forEach(el => {
+        const d = document.createElement('div');
+        d.className = 'mermaid';
+        d.textContent = el.textContent;
+        el.closest('pre').replaceWith(d);
+      });
+      docbody.querySelectorAll('table').forEach(t => t.classList.add('spec'));
+      if (window.mermaid && mermaid.run) {
+        try { await mermaid.run({ nodes: docbody.querySelectorAll('div.mermaid') }); } catch (err) {}
+      }
+    } catch (err) {
+      docbody.innerHTML = '<div class="note"><b>Could not load the rendered document.</b> Browsers block local file reads, so serve the folder over HTTP and click again.<br><br><b>Option 1 (VS Code):</b> right-click <code>index.html</code> → Open with Live Server.<br><b>Option 2 (terminal):</b> from the repo root run <code>npx -y serve docs -l 8080</code>, then open <code>http://localhost:8080/cps-272-presentation/</code>.<br><br>Tip: the <b>Open raw</b> button above always works as a fallback.</div>';
+    }
+  }
+  document.querySelectorAll('a.g-doc').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    openDoc(a.getAttribute('href'), a.textContent.trim().replace(/\s+/g, ' '), a);
+  }));
+  document.querySelector('.g-main').addEventListener('click', e => {
+    const a = e.target.closest ? e.target.closest('a.ref') : null;
+    if (a && /\.md$/.test(a.getAttribute('href') || '')) {
+      e.preventDefault();
+      openDoc(a.getAttribute('href'), a.getAttribute('title') || a.textContent);
+    }
+  });
+  /* ---- Local planning board: assignees, estimates, notes, custom tickets (localStorage) ---- */
+  const LS_A = 'cps272-assign-v1', LS_C = 'cps272-custom-v1', LS_T = 'cps272-team-v1';
+  const loadJ = (k, f) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? f : v; } catch (e) { return f; } };
+  const saveJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  let ASSIGN = loadJ(LS_A, {}), CUSTOM = loadJ(LS_C, []), TEAM = loadJ(LS_T, []);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const stamp = () => new Date().toTimeString().slice(0, 5);
+  function defaultPts(d) { const b = d.querySelector('.badge.pts'); const m = b ? b.textContent.match(/(\d+)/) : null; return m ? m[1] : ''; }
+  function paintCount() {
+    const n = [...document.querySelectorAll('#tickets details.tkt[data-tid]')].filter(d => { const w = d.querySelector('.a-who'); return w && w.value.trim(); }).length;
+    const el = document.getElementById('assignCount');
+    if (el) el.textContent = n + ' of 21 assigned' + (CUSTOM.length ? ' · ' + CUSTOM.length + ' local' : '');
+  }
+  function bindAssign(box) {
+    const tid = box.dataset.tid;
+    const who = box.querySelector('.a-who'), pts = box.querySelector('.a-pts'),
+          notes = box.querySelector('.a-notes'), saved = box.querySelector('.a-saved');
+    const cur = ASSIGN[tid] || {};
+    if (cur.estimate === undefined || cur.estimate === '') {
+      const host = box.closest('details.tkt');
+      cur.estimate = host ? defaultPts(host) : '';
+    }
+    who.value = cur.assignee || ''; pts.value = cur.estimate || ''; notes.value = cur.notes || '';
+    if (cur.updatedAt) saved.textContent = 'Saved ' + cur.updatedAt;
+    updateMeta(box);
+    const on = () => {
+      ASSIGN[tid] = { assignee: who.value.trim(), estimate: pts.value === '' ? '' : Number(pts.value), notes: notes.value, updatedAt: stamp() };
+      saveJ(LS_A, ASSIGN);
+      saved.textContent = 'Saved ' + ASSIGN[tid].updatedAt;
+      updateMeta(box);
+      refresh();
+    };
+    [who, pts, notes].forEach(el => el.addEventListener('input', on));
+  }
+  function assignBox(tid) {
+    const box = document.createElement('div');
+    box.className = 'assign';
+    box.dataset.tid = tid;
+    box.innerHTML = '<div class="assign-row"><label>Assignee<input class="a-who" list="teamList" placeholder="e.g. Kevin" autocomplete="off"></label><label>Estimate (pts)<input class="a-pts" type="number" min="0" max="100"></label><span class="a-saved muted"></span></div><label>Notes / comments<textarea class="a-notes" rows="2" placeholder="Comments, blockers, decisions…"></textarea></label>';
+    return box;
+  }
+  document.querySelectorAll('#tickets details.tkt').forEach(d => {
+    const m = d.querySelector('summary').textContent.match(/^\s*([A-Z]-\d+[a-z]?)\b/);
+    if (!m || d.closest('#customList')) return;
+    d.dataset.tid = m[1];
+    d.querySelector('.tbody').appendChild(assignBox(m[1]));
+    bindAssign(d.querySelector('.assign'));
+  });
+  let FILTER = null;
+  function totals() {
+    const sums = {};
+    const add = (tid) => {
+      const a = ASSIGN[tid];
+      if (a && a.assignee) sums[a.assignee] = (sums[a.assignee] || 0) + (Number(a.estimate) || 0);
+    };
+    document.querySelectorAll('#tickets details.tkt[data-tid]').forEach(d => add(d.dataset.tid));
+    CUSTOM.forEach(c => add('local:' + c.id));
+    return sums;
+  }
+  function applyFilter() {
+    const vis = (key) => !FILTER || ((ASSIGN[key] || {}).assignee === FILTER);
+    document.querySelectorAll('#tickets details.tkt[data-tid]').forEach(d => { d.hidden = !vis(d.dataset.tid); });
+    document.querySelectorAll('#customList details.tkt').forEach(d => { d.hidden = !vis(d.dataset.key); });
+  }
+  function refresh() { paintTeam(); applyFilter(); paintCount(); }
+  function updateMeta(box) {
+    const host = box.closest('details.tkt');
+    if (!host) return;
+    let s = host.querySelector('summary .tmeta');
+    if (!s) { s = document.createElement('span'); s.className = 'tmeta muted'; host.querySelector('summary').appendChild(s); }
+    const a = ASSIGN[box.dataset.tid] || {};
+    const bits = [];
+    if (a.assignee) bits.push('@' + a.assignee);
+    if (a.estimate !== '' && a.estimate !== undefined) bits.push(a.estimate + 'pts');
+    s.textContent = bits.length ? ' · ' + bits.join(' · ') : '';
+  }
+  function paintTeam() {
+    const chips = document.getElementById('teamChips'), dl = document.getElementById('teamList');
+    const sums = totals();
+    chips.innerHTML = ''; dl.innerHTML = '';
+    TEAM.forEach(name => {
+      const o = document.createElement('option'); o.value = name; dl.appendChild(o);
+      const c = document.createElement('span');
+      c.className = 'chip-m' + (FILTER === name ? ' active' : '');
+      c.title = 'Click to filter tickets assigned to ' + name;
+      const label = document.createElement('span'); label.textContent = name + ' ';
+      const p = document.createElement('b'); p.className = 'chip-pts'; p.textContent = '· ' + (sums[name] || 0) + 'pts';
+      const x = document.createElement('button'); x.textContent = '✕'; x.title = 'Remove ' + name;
+      x.onclick = (e) => { e.stopPropagation(); TEAM = TEAM.filter(t => t !== name); saveJ(LS_T, TEAM); if (FILTER === name) FILTER = null; refresh(); };
+      c.appendChild(label); c.appendChild(p); c.appendChild(x);
+      c.onclick = () => { FILTER = (FILTER === name) ? null : name; refresh(); };
+      chips.appendChild(c);
+    });
+    const fc = document.getElementById('filterNote');
+    if (fc) fc.textContent = FILTER ? ('Showing tickets assigned to ' + FILTER + ' — click the chip again to clear.') : '';
+  }
+  document.getElementById('teamAddBtn').onclick = () => {
+    const inp = document.getElementById('teamAdd');
+    const v = inp.value.trim();
+    if (v && !TEAM.includes(v)) { TEAM.push(v); saveJ(LS_T, TEAM); refresh(); }
+    inp.value = ''; inp.focus();
+  };
+  document.getElementById('teamAdd').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('teamAddBtn').click(); });
+  const PRI_CLASS = { Blocker: 'crit', Critical: 'crit', Major: 'maj', Minor: 'min', Trivial: 'min' };
+  function renderCustom() {
+    const wrap = document.getElementById('customWrap'), list = document.getElementById('customList');
+    list.innerHTML = '';
+    wrap.hidden = CUSTOM.length === 0;
+    CUSTOM.forEach((c, i) => {
+      const d = document.createElement('details');
+      d.className = 'tkt';
+      d.dataset.key = 'local:' + c.id;
+      d.innerHTML = '<summary>' + esc(c.id) + ' — ' + esc(c.title) + ' <span class="badge ' + (PRI_CLASS[c.pri] || 'maj') + '">' + esc(c.pri) + '</span> <span class="badge pts">' + esc(String(c.pts)) + ' pts</span> ' + (c.comp ? '<span class="badge comp">' + esc(c.comp) + '</span> ' : '') + '<span class="badge min">local</span></summary><div class="tbody"><p>' + esc(c.det).replace(/\n/g, '<br>') + '</p><p><button class="btn ghost del">Delete local ticket</button></p></div>';
+      d.querySelector('.del').onclick = () => {
+        delete ASSIGN['local:' + c.id];
+        saveJ(LS_A, ASSIGN);
+        CUSTOM.splice(i, 1); saveJ(LS_C, CUSTOM);
+        renderCustom();
+      };
+      list.appendChild(d);
+      const box = assignBox('local:' + c.id);
+      d.querySelector('.tbody').appendChild(box);
+      bindAssign(box);
+    });
+    refresh();
+  }
+  document.getElementById('addTktBtn').onclick = () => {
+    const w = document.getElementById('cformWrap');
+    w.hidden = !w.hidden;
+  };
+  document.getElementById('cSave').onclick = () => {
+    const id = document.getElementById('cId').value.trim().toUpperCase();
+    const title = document.getElementById('cTitle').value.trim();
+    if (!id || !title) return;
+    if (CUSTOM.some(c => c.id === id)) return;
+    CUSTOM.push({ id, title, pri: document.getElementById('cPri').value, pts: Number(document.getElementById('cPts').value) || 0, comp: document.getElementById('cComp').value.trim(), det: document.getElementById('cDet').value.trim() });
+    saveJ(LS_C, CUSTOM);
+    ['cId', 'cTitle', 'cComp', 'cDet'].forEach(k => document.getElementById(k).value = '');
+    document.getElementById('cformWrap').hidden = true;
+    renderCustom();
+  };
+  document.getElementById('exportBtn').onclick = () => {
+    const data = { exportedAt: new Date().toISOString(), team: TEAM, assignments: ASSIGN, customTickets: CUSTOM };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'cps272-assignments.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  document.getElementById('importBtn').onclick = () => document.getElementById('importFile').click();
+  document.getElementById('importFile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const data = JSON.parse(r.result);
+        if (!data || typeof data !== 'object' || (!data.assignments && !data.team && !data.customTickets)) throw new Error('bad shape');
+        if (!confirm('Replace the current board with "' + f.name + '"? This overwrites team, assignments, and local tickets in this browser.')) return;
+        if (Array.isArray(data.team)) TEAM = data.team.filter(x => typeof x === 'string');
+        if (data.assignments && typeof data.assignments === 'object') ASSIGN = data.assignments;
+        if (Array.isArray(data.customTickets)) CUSTOM = data.customTickets.filter(c => c && c.id && c.title);
+        saveJ(LS_T, TEAM); saveJ(LS_A, ASSIGN); saveJ(LS_C, CUSTOM);
+        location.reload();
+      } catch (err) { alert('Could not import: not a valid planning-board JSON file.'); }
+    };
+    r.readAsText(f);
+    e.target.value = '';
+  });
+  paintTeam();
+  renderCustom();
+  paint();
+</script>
+</body>
+</html>
