@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CPS-272 — Self-Service Registration with KYC: Dev Briefing</title>
+<link rel="icon" type="image/png" href="assets/svi-logo.png">
 <style>
   :root {
     --acc: #4f46e5; --acc2: #7c3aed; --ok: #1d9e6b; --bad: #d64545;
@@ -42,6 +43,7 @@
   .g-side { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--card); border-right: 1px solid var(--line); padding: 18px 14px; display: flex; flex-direction: column; gap: 4px; scrollbar-width: thin; }
   .g-brand { display: flex; gap: 10px; align-items: center; padding: 2px 6px 14px; }
   .g-badge { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .g-logo { width: 42px; height: 42px; border-radius: 12px; background: #fff; object-fit: cover; flex: none; }
   .g-brand b { font-size: 15px; display: block; }
   .g-brand span { font-size: 11px; color: var(--muted); }
   .g-group { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 12px 8px 4px; }
@@ -198,8 +200,8 @@
 <body class="guide hide-pts">
 <div class="g-shell">
   <nav class="g-side" id="agenda">
-    <div class="g-brand">
-      <div class="g-badge">272</div>
+      <div class="g-brand">
+      <img class="g-logo" src="assets/svi-logo.png" alt="SVI logo" />
       <div><b>CPS-272 Self-Service KYC</b><span>TDD briefing · dev walkthrough</span></div>
     </div>
     <div class="g-progress"><div id="gprog"></div></div>
